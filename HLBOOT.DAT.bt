@@ -1,0 +1,842 @@
+RequiresVersion( 15 );
+
+typedef struct
+{
+    local UINT8 b = ReadByte();
+    local UINT32 Value = 0;
+    if ((b & 0x80) == 0)
+    {
+        Value = b & 0x7F;
+        UINT8 seq[1];
+    }
+    else if ((b & 0x40) == 0)
+    {
+        Value = ((UINT8) ReadByte(FTell() + 1) | ((b & 31) << 8));
+        UINT8 seq[2];
+    }
+    else
+    {
+        local UINT32 c = (UINT8) ReadByte(FTell() + 1);
+        local UINT32 d = (UINT8) ReadByte(FTell() + 2);
+        local UINT32 e = (UINT8) ReadByte(FTell() + 3);
+        Value = (((b & 31) << 24) | (c << 16) | (d << 8) | e);
+        UINT8 seq[4];
+    }
+} HLBC_VAR <optimize=false>;
+
+typedef struct
+{
+    HLBC_VAR Data;
+} HLBC_REF_STRING;
+
+typedef struct
+{
+    HLBC_VAR Data;
+} HLBC_REF_GLOBAL;
+
+typedef struct
+{
+    HLBC_VAR Data;
+} HLBC_REF_TYPE <optimize=false>;
+
+typedef struct
+{
+    HLBC_VAR Data;
+} HLBC_REF_FUN;
+
+typedef struct
+{
+    HLBC_VAR Data;
+} HLBC_REF_FIELD;
+
+typedef struct
+{
+    HLBC_REF_STRING Name;
+    HLBC_REF_TYPE Type;
+} HLBC_OBJ_FIELD <optimize=false>;
+
+typedef struct
+{
+    HLBC_REF_STRING Name;
+    HLBC_REF_FUN Findex;
+    HLBC_VAR Pindex;
+} HLBC_OBJ_PROTO <optimize=false>;
+
+typedef struct
+{
+    HLBC_REF_FIELD Key;
+    HLBC_REF_FUN Value;
+} HLBC_HASH_MAP <optimize=false>;
+
+typedef struct
+{
+    HLBC_REF_STRING Name;
+    HLBC_VAR Nparams;
+    if (Nparams.Value > 0)
+    {
+        HLBC_REF_TYPE Params[Nparams.Value];
+    }
+} HLBC_CONSTRUCT <optimize=false>;
+
+typedef struct
+{
+    UINT8 Nargs;
+    if (Nargs > 0)
+    {
+        HLBC_REF_TYPE Args[Nargs];
+    }
+    HLBC_REF_TYPE Ret;
+} HLBC_TYPE_FUN;
+
+typedef struct
+{
+    HLBC_REF_STRING Name;
+    HLBC_VAR Super_;
+    HLBC_REF_GLOBAL Global;
+    HLBC_VAR Nfields;
+    HLBC_VAR Nprotos;
+    HLBC_VAR Nbindings;
+    if (Nfields.Value > 0)
+    {
+        HLBC_OBJ_FIELD OwnFields[Nfields.Value];
+    }
+    if (Nprotos.Value > 0)
+    {
+        HLBC_OBJ_PROTO Protos[Nprotos.Value];
+    }
+    if (Nbindings.Value > 0)
+    {
+        HLBC_HASH_MAP Bindings[Nbindings.Value];
+    }
+} HLBC_TYPE_OBJ;
+
+typedef struct
+{
+    HLBC_REF_STRING Lib;
+    HLBC_REF_STRING Name;
+    HLBC_REF_TYPE Type;
+    HLBC_REF_FUN Findex;
+} HLBC_NATIVE <style=sHeading1, optimize=false>;
+
+typedef struct
+{
+    UINT8 Byte;
+    switch (Byte)
+    {
+        case 10:
+            HLBC_TYPE_FUN TypeFun;
+            break;
+        case 11:
+            HLBC_TYPE_OBJ TypeObj;
+            break;
+        case 14:
+            HLBC_REF_TYPE RefType;
+            break;
+        case 15:
+            HLBC_VAR Nfields;
+            if (Nfields.Value > 0)
+            {
+                HLBC_OBJ_FIELD Fields[Nfields.Value];
+            }
+            break;
+        case 17:
+            HLBC_REF_STRING Name;
+            break;
+        case 18:
+            HLBC_REF_STRING Name;
+            HLBC_REF_GLOBAL Global;
+            HLBC_VAR Nconstructs;
+            if (Nconstructs.Value > 0)
+            {
+                HLBC_CONSTRUCT Constructs[Nconstructs.Value];
+            }
+            break;
+        case 19:
+            HLBC_REF_TYPE RefType;
+            break;
+        case 20:
+            HLBC_TYPE_FUN TypeFun;
+            break;
+        case 21:
+            HLBC_TYPE_OBJ TypeObj;
+            break;
+        case 22:
+            HLBC_REF_TYPE RefType;
+            break;
+        default:
+    }
+} HLBC_TYPE <style=sData, optimize=false>;
+
+typedef struct
+{
+    UINT8 Op;
+    switch (Op)
+    {
+        case 0: // Mov
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 1: // Int
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE ptr;
+            break;
+        case 2: // Float
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE ptr;
+            break;
+        case 3: // Bool
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE value;
+            break;
+        case 4: // Bytes
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE ptr;
+            break;
+        case 5: // String
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE ptr;
+            break;
+        case 6: // Null
+            HLBC_REF_TYPE dst;
+            break;
+        case 7: // Add
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 8: // Sub
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 9: // Mul
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 10: // SDiv
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 11: // UDiv
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 12: // SMod
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 13: // UMod
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 14: // Shl
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 15: // SShr
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 16: // UShr
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 17: // And
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 18: // Or
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 19: // Xor
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            break;
+        case 20: // Neg
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 21: // Not
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 22: // Incr
+            HLBC_REF_TYPE dst;
+            break;
+        case 23: // Decr
+            HLBC_REF_TYPE dst;
+            break;
+        case 24: // Call0
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            break;
+        case 25: // Call1
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            HLBC_REF_FUN arg0;
+            break;
+        case 26: // Call2
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            HLBC_REF_FUN arg0;
+            HLBC_REF_FUN arg1;
+            break;
+        case 27: // Call3
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            HLBC_REF_FUN arg0;
+            HLBC_REF_FUN arg1;
+            HLBC_REF_FUN arg2;
+            break;
+        case 28: // Call4
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            HLBC_REF_FUN arg0;
+            HLBC_REF_FUN arg1;
+            HLBC_REF_FUN arg2;
+            HLBC_REF_FUN arg3;
+            break;
+        case 29: // CallN
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            HLBC_VAR Nargs;
+            if (Nargs.Value > 0)
+            {
+                HLBC_REF_TYPE Args[Nargs.Value];
+            }
+            break;
+        case 30: // CallMethod
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FIELD field;
+            HLBC_VAR Nargs;
+            if (Nargs.Value > 0)
+            {
+                HLBC_REF_TYPE Args[Nargs.Value];
+            }
+            break;
+        case 31: // CallThis
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FIELD field;
+            HLBC_VAR Nargs;
+            if (Nargs.Value > 0)
+            {
+                HLBC_REF_TYPE Args[Nargs.Value];
+            }
+            break;
+        case 32: // CallClosure
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE fun;
+            HLBC_VAR Nargs;
+            if (Nargs.Value > 0)
+            {
+                HLBC_REF_TYPE Args[Nargs.Value];
+            }
+            break;
+        case 33: // StaticClosure
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            break;
+        case 34: // InstanceClosure
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FUN fun;
+            HLBC_REF_TYPE obj;
+            break;
+        case 35: // VirtualClosure
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE obj;
+            HLBC_REF_TYPE field;
+            break;
+        case 36: // GetGlobal
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE global;
+            break;
+        case 37: // SetGlobal
+            HLBC_REF_TYPE global;
+            HLBC_REF_TYPE src;
+            break;
+        case 38: // Field
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE obj;
+            HLBC_REF_FIELD field;
+            break;
+        case 39: // SetField
+            HLBC_REF_TYPE obj;
+            HLBC_REF_FIELD field;
+            HLBC_REF_TYPE src;
+            break;
+        case 40: // GetThis
+            HLBC_REF_TYPE dst;
+            HLBC_REF_FIELD field;
+            break;
+        case 41: // SetThis
+            HLBC_REF_FIELD field;
+            HLBC_REF_TYPE src;
+            break;
+        case 42: // DynGet
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE obj;
+            HLBC_REF_STRING field;
+            break;
+        case 43: // DynSet
+            HLBC_REF_TYPE obj;
+            HLBC_REF_STRING field;
+            HLBC_REF_TYPE src;
+            break;
+        case 44: // JTrue
+            HLBC_REF_TYPE cond;
+            HLBC_REF_TYPE offset;
+            break;
+        case 45: // JFalse
+            HLBC_REF_TYPE cond;
+            HLBC_REF_TYPE offset;
+            break;
+        case 46: // JNull
+            HLBC_REF_TYPE reg;
+            HLBC_REF_TYPE offset;
+            break;
+        case 47: // JNotNull
+            HLBC_REF_TYPE reg;
+            HLBC_REF_TYPE offset;
+            break;
+        case 48: // JSLt
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 49: // JSGte
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 50: // JSGt
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 51: // JSLte
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 52: // JULt
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 53: // JUGte
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 54: // JNotLt
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 55: // JNotGte
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 56: // JEq
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 57: // JNotEq
+            HLBC_REF_TYPE a;
+            HLBC_REF_TYPE b;
+            HLBC_REF_TYPE offset;
+            break;
+        case 58: // JAlways
+            HLBC_REF_TYPE offset;
+            break;
+        case 59: // ToDyn
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 60: // ToSFloat
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 61: // ToUFloat
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 62: // ToInt
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 63: // SafeCast
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 64: // UnsafeCast
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 65: // ToVirtual
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 66: // Label
+            break;
+        case 67: // Ret
+            HLBC_REF_TYPE ret;
+            break;
+        case 68: // Throw
+            HLBC_REF_TYPE exc;
+            break;
+        case 69: // Rethrow
+            HLBC_REF_TYPE exc;
+            break;
+        case 70: // Switch
+            HLBC_REF_TYPE reg;
+            HLBC_VAR Noffsets;
+            if (Noffsets.Value > 0)
+            {
+                HLBC_REF_TYPE offsets[Noffsets.Value];
+            }
+            HLBC_REF_TYPE end;
+            break;
+        case 71: // NullCheck
+            HLBC_REF_TYPE reg;
+            break;
+        case 72: // Trap
+            HLBC_REF_TYPE exc;
+            HLBC_REF_TYPE offset;
+            break;
+        case 73: // EndTrap
+            HLBC_REF_TYPE exc;
+            break;
+        case 74: // GetI8
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE bytes;
+            HLBC_REF_TYPE index;
+            break;
+        case 75: // GetI16
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE bytes;
+            HLBC_REF_TYPE index;
+            break;
+        case 76: // GetMem
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE bytes;
+            HLBC_REF_TYPE index;
+            break;
+        case 77: // GetArray
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE array;
+            HLBC_REF_TYPE index;
+            break;
+        case 78: // SetI8
+            HLBC_REF_TYPE bytes;
+            HLBC_REF_TYPE index;
+            HLBC_REF_TYPE src;
+            break;
+        case 79: // SetI16
+            HLBC_REF_TYPE bytes;
+            HLBC_REF_TYPE index;
+            HLBC_REF_TYPE src;
+            break;
+        case 80: // SetMem
+            HLBC_REF_TYPE bytes;
+            HLBC_REF_TYPE index;
+            HLBC_REF_TYPE src;
+            break;
+        case 81: // SetArray
+            HLBC_REF_TYPE array;
+            HLBC_REF_TYPE index;
+            HLBC_REF_TYPE src;
+            break;
+        case 82: // New
+            HLBC_REF_TYPE dst;
+            break;
+        case 83: // ArraySize
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE array;
+            break;
+        case 84: // Type
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE ty;
+            break;
+        case 85: // GetType
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 86: // GetTID
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 87: // Ref
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 88: // Unref
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 89: // Setref
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE value;
+            break;
+        case 90: // MakeEnum
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE construct;
+            HLBC_VAR Nargs;
+            if (Nargs.Value > 0)
+            {
+                HLBC_REF_TYPE Args[Nargs.Value];
+            }
+            break;
+        case 91: // EnumAlloc
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE construct;
+            break;
+        case 92: // EnumIndex
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE value;
+            break;
+        case 93: // EnumField
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE value;
+            HLBC_REF_TYPE construct;
+            HLBC_REF_FIELD field;
+            break;
+        case 94: // SetEnumField
+            HLBC_REF_TYPE value;
+            HLBC_REF_FIELD field;
+            HLBC_REF_TYPE src;
+            break;
+        case 95: // Assert
+            break;
+        case 96: // RefData
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            break;
+        case 97: // RefOffset
+            HLBC_REF_TYPE dst;
+            HLBC_REF_TYPE src;
+            HLBC_REF_TYPE offset;
+            break;
+        case 98: // Nop
+            break;
+        case 99: // Prefetch
+            HLBC_REF_TYPE value;
+            HLBC_REF_FIELD field;
+            HLBC_REF_TYPE mode;
+            break;
+        case 100: // Asm
+            HLBC_REF_TYPE mode;
+            HLBC_REF_TYPE value;
+            HLBC_REF_TYPE reg;
+            break;
+        default:
+            Printf("Unknown instruction at %d\n", FTell());
+    }
+} HLBC_OPCODE <style=sSection2, optimize=false>;
+
+typedef struct (UINT32 nops)
+{
+    local UINT32 i = 0;
+    local UINT8 c; 
+    local UINT32 currfile;
+    local UINT32 cnt;
+    while (i < nops)
+    {
+        c = ReadByte();
+        FSeek(FTell() + 1);
+        if ((c & 1) != 0)
+        {
+            c >>= 1;
+            currfile = ((c << 8) | ((UINT8)ReadByte()));
+            FSeek(FTell() + 1);
+        }
+        else if ((c & 2) != 0)
+        {
+            cnt = (c >> 2) & 15;
+            while (cnt > 0)
+            {
+                cnt -= 1;
+                i += 1;
+            }
+        }
+        else if ((c & 4) != 0)
+        {
+            i += 1;
+        }
+        else
+        {
+            FSeek(FTell() + 2);
+            i += 1;
+        }
+    }
+} HLBC_FUNCTION_DEBUG <style=sMarker>;
+
+typedef struct
+{
+    HLBC_REF_STRING X;
+    HLBC_VAR Y;
+} HLBC_ASSIGN <style=sSection1, optimize=false>;
+
+typedef struct (UINT8 version, UINT8 hasDebug)
+{
+    HLBC_REF_TYPE Type;
+    HLBC_REF_FUN Findex;
+    HLBC_VAR Nregs;
+    HLBC_VAR Nops;
+    if (Nregs.Value > 0)
+    {
+        HLBC_REF_TYPE Regs[Nregs.Value];
+    }
+    if (Nops.Value > 0)
+    {
+        HLBC_OPCODE Ops[Nops.Value];
+    }
+    if (hasDebug != 0)
+    {
+        HLBC_FUNCTION_DEBUG DebugInfo (Nops.Value);
+    }
+    if ((hasDebug != 0) && (version >= 3))
+    {
+        HLBC_VAR Nassigns;
+        if (Nassigns.Value > 0)
+        {
+            HLBC_ASSIGN assigns[Nassigns.Value];
+        }
+    }
+} HLBC_FUNCTION <optimize=false>;
+
+typedef struct
+{
+    HLBC_REF_GLOBAL global;
+    HLBC_VAR Nfields;
+    if (Nfields.Value > 0)
+    {
+        HLBC_VAR fields[Nfields.Value];
+    }
+} HLBC_CONSTANT_DEF <style=sHeading4, optimize=false>;
+
+typedef struct
+{
+    CHAR Magic[3];
+    UINT8 Version <style=sSection1>;
+    HLBC_VAR Flags <style=sSection2>;
+    HLBC_VAR Nints;
+    HLBC_VAR Nfloats;
+    HLBC_VAR Nstrings;
+    if (Version >= 5)
+    {
+        HLBC_VAR Nbytes;
+    }
+    HLBC_VAR Ntypes;
+    HLBC_VAR Nglobals;
+    HLBC_VAR Nnatives;
+    HLBC_VAR Nfunctions;
+    if (Version >= 4)
+    {
+        HLBC_VAR Nconstants;
+    }
+    HLBC_VAR Entrypoint <style=sMarker>;
+
+    Printf("Ints: %d\n", Nints.Value);
+    if (Nints.Value > 0)
+    {
+        INT32 Ints[Nints.Value] <style=sSection1>;
+    }
+
+    Printf("Floats: %d\n", Nfloats.Value);
+    if (Nfloats.Value)
+    {
+        DOUBLE Floats[Nfloats.Value] <style=sSection2>;
+    }
+
+    Printf("Strings: %d\n", Nstrings.Value);
+    UINT32 StringData;
+    if (StringData > 0)
+    {
+        CHAR Strings[StringData] <style=sData>;
+    }
+    if (Nstrings.Value > 0)
+    {
+        HLBC_VAR StringSizes[Nstrings.Value] <style=sHeading3>;
+    }
+
+    if (Version >= 5)
+    {
+        Printf("Bytes: %d\n", Nbytes.Value);
+        UINT32 ByteData;
+        if (ByteData > 0)
+        {
+            UINT8 Bytes[ByteData] <style=sData>;
+        }
+        if (Nbytes.Value > 0)
+        {
+            HLBC_VAR ByteSizes[Nbytes.Value] <style=sHeading3>;
+        }
+    }
+
+    local UINT8 HasDebug = 0;
+    if ((Flags.Value & 1) == 1)
+    {
+        HLBC_VAR NdebugFiles;
+        UINT32 FileData;
+
+        Printf("Files: %d\n", NdebugFiles.Value);
+        if (FileData > 0)
+        {
+            CHAR Files[FileData] <style=sData>;
+        }
+        if (NdebugFiles.Value > 0)
+        {
+            HLBC_VAR FileSizes[NdebugFiles.Value] <style=sHeading3>;
+        }
+        HasDebug = 1;
+    }
+
+    Printf("Classes: %d\n", Ntypes.Value);
+    if (Ntypes.Value > 0)
+    {
+        HLBC_TYPE Types[Ntypes.Value];
+    }
+
+    Printf("Globals: %d\n", Nglobals.Value);
+    if (Nglobals.Value > 0)
+    {
+        HLBC_REF_TYPE Globals[Nglobals.Value] <style=sSection3>;
+    }
+
+    Printf("Natives: %d\n", Nnatives.Value);
+    if (Nnatives.Value > 0)
+    {
+        HLBC_NATIVE Natives[Nnatives.Value];
+    }
+
+    Printf("Functions: %d\n", Nfunctions.Value);
+    if (Nfunctions.Value > 0)
+    {
+        HLBC_FUNCTION Functions (Version, HasDebug) [Nfunctions.Value];
+    }
+
+    Printf("Constants: %d\n", Nconstants.Value);
+    if (Nconstants.Value > 0)
+    {
+        HLBC_CONSTANT_DEF Constants[Nconstants.Value];
+    }
+} HLBC <style=sHeading1>;
+
+/**** PARSING CODE ****/
+LittleEndian();
+HLBC Hlbc;
