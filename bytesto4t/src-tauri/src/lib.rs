@@ -1,32 +1,16 @@
+mod entities;
+
+use crate::entities::{AppConfig, AppData, Storage};
+use hlbc::fmt::EnhancedFmt;
+use hlbc::types::Type;
+use hlbc::Bytecode;
+use hlbc::Resolve;
+use hlbc_decompiler::{decompile_class, decompile_function};
 use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
-use serde::{Deserialize, Serialize};
-use hlbc::Bytecode;
-use hlbc::Resolve;
-use hlbc::fmt::EnhancedFmt;
-use hlbc::types::Type;
-use hlbc_decompiler::{decompile_function, decompile_class};
-use tauri::State;
 use tauri::Manager;
-
-#[derive(Serialize, Deserialize)]
-struct AppConfig {
-    file_path: String,
-    theme: Option<String>,
-    colorscheme: Option<String>,
-    recent_files: Option<Vec<String>>,
-}
-
-struct AppData {
-    target_file_path: String,
-    bytecode: Option<Bytecode>,
-    app_config: AppConfig,
-}
-
-struct Storage {
-    app_data: Mutex<AppData>,
-}
+use tauri::State;
 
 #[tauri::command]
 fn set_target_file_path(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
@@ -47,8 +31,12 @@ fn get_function_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let mut function_names = Vec::new();
     let mut index = 0;
     for function in functions {
-        function_names.push(function.name(&bytecode).to_string() + &function.findex.to_string() +
-            "@" + &index.to_string());
+        function_names.push(
+            function.name(bytecode).to_string()
+                + &function.findex.to_string()
+                + "@"
+                + &index.to_string(),
+        );
         index += 1;
     }
 
@@ -81,8 +69,7 @@ fn get_type_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let mut type_names = Vec::new();
     let mut index = 0;
     for t in types {
-        type_names.push(t.display::<EnhancedFmt>(&bytecode).to_string() +
-            "@" + &index.to_string());
+        type_names.push(t.display::<EnhancedFmt>(bytecode).to_string() + "@" + &index.to_string());
         index += 1;
     }
 
@@ -112,8 +99,8 @@ fn get_global_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let mut global_list = Vec::new();
     let mut index = 0;
     for g in globals {
-        global_list.push(g.display::<EnhancedFmt>(&bytecode).to_string() +
-            "@" + &index.to_string());
+        global_list
+            .push(g.display::<EnhancedFmt>(bytecode).to_string() + "@" + &index.to_string());
         index += 1;
     }
 
@@ -128,8 +115,8 @@ fn get_native_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let mut native_list = Vec::new();
     let mut index = 0;
     for n in natives {
-        native_list.push(n.display::<EnhancedFmt>(&bytecode).to_string() +
-            "@" + &index.to_string());
+        native_list
+            .push(n.display::<EnhancedFmt>(bytecode).to_string() + "@" + &index.to_string());
         index += 1;
     }
 
@@ -184,7 +171,6 @@ fn get_float_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
     Ok(float_list)
 }
 
-
 #[tauri::command]
 fn get_decompiled_code(function_index: &str, app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
@@ -202,10 +188,13 @@ fn get_decompiled_code(function_index: &str, app_data: State<Storage>) -> Result
     let mut decompiled_code = String::new();
 
     if let Some(f) = function {
-        decompiled_code = format!("{}", decompile_function(&bytecode, &f)
-            .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2)));
+        decompiled_code = format!(
+            "{}",
+            decompile_function(bytecode, f)
+                .display(bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+        );
     }
-    
+
     Ok(decompiled_code)
 }
 
@@ -215,7 +204,9 @@ fn get_decompiled_type(type_index: &str, app_data: State<Storage>) -> Result<Str
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
     let types = &bytecode.types;
 
-    let tindex: usize = type_index[1..].parse().map_err(|_| "Invalid type index format")?;
+    let tindex: usize = type_index[1..]
+        .parse()
+        .map_err(|_| "Invalid type index format")?;
     if tindex >= types.len() {
         return Err("Type index out of bounds".to_string());
     }
@@ -223,8 +214,11 @@ fn get_decompiled_type(type_index: &str, app_data: State<Storage>) -> Result<Str
     let type_obj = types[tindex].clone();
     let decompiled_code = match type_obj {
         Type::Obj(obj) => {
-            format!("{}", decompile_class(&bytecode, &obj)
-                .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2)))
+            format!(
+                "{}",
+                decompile_class(bytecode, &obj)
+                    .display(bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+            )
         }
         _ => return Err("Type is not an object".to_string()),
     };
@@ -240,14 +234,26 @@ fn get_dashboard_info(app_data: State<Storage>) -> Result<String, String> {
     let int_n = bytecode.ints.len();
     let float_n = bytecode.floats.len();
     let string_n = bytecode.strings.len();
-    let byte_n = bytecode.bytes.as_ref().map(|(bytes, _)| bytes.len()).unwrap_or(0);
-    let file_n = bytecode.debug_files.as_ref().map(|files| files.len()).unwrap_or(0);
+    let byte_n = bytecode
+        .bytes
+        .as_ref()
+        .map(|(bytes, _)| bytes.len())
+        .unwrap_or(0);
+    let file_n = bytecode
+        .debug_files
+        .as_ref()
+        .map(|files| files.len())
+        .unwrap_or(0);
     let type_n = bytecode.types.len();
     let global_n = bytecode.globals.len();
     let native_n = bytecode.natives.len();
     let function_n = bytecode.functions.len();
-    let constant_n = bytecode.constants.as_ref().map(|constants| constants.len()).unwrap_or(0);
-    let entrypoint = bytecode.entrypoint.display::<EnhancedFmt>(&bytecode);
+    let constant_n = bytecode
+        .constants
+        .as_ref()
+        .map(|constants| constants.len())
+        .unwrap_or(0);
+    let entrypoint = bytecode.entrypoint.display::<EnhancedFmt>(bytecode);
 
     Ok(format!(
         "File path: {}\nVersion: {}\nInts: {}\nFloats: {}\nStrings: {}\nBytes: {}\nFiles: {}\nTypes: {}\nGlobals: {}\nNatives: {}\nFunctions: {}\nConstants: {}\nEntrypoint: {}",
@@ -272,7 +278,7 @@ fn get_disassembled_code(function_index: &str, app_data: State<Storage>) -> Resu
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
     let functions = &bytecode.functions;
-    
+
     let mut function = None;
     for f in functions {
         if f.findex.to_string() == function_index {
@@ -280,9 +286,9 @@ fn get_disassembled_code(function_index: &str, app_data: State<Storage>) -> Resu
             break;
         }
     }
-    
-    let disassembled_code = format!("{}", function.unwrap().display::<EnhancedFmt>(&bytecode));
-    
+
+    let disassembled_code = format!("{}", function.unwrap().display::<EnhancedFmt>(bytecode));
+
     Ok(disassembled_code)
 }
 
@@ -292,7 +298,9 @@ fn get_disassembled_type(type_index: &str, app_data: State<Storage>) -> Result<S
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
     let types = &bytecode.types;
 
-    let tindex: usize = type_index[1..].parse().map_err(|_| "Invalid type index format")?;
+    let tindex: usize = type_index[1..]
+        .parse()
+        .map_err(|_| "Invalid type index format")?;
     if tindex >= types.len() {
         return Err("Type index out of bounds".to_string());
     }
@@ -300,32 +308,51 @@ fn get_disassembled_type(type_index: &str, app_data: State<Storage>) -> Result<S
     let type_obj = &types[tindex];
     let disassembled_type = match type_obj {
         Type::Obj(obj) => {
-            let mut disassembled_type = format!("{}", type_obj.display::<EnhancedFmt>(&bytecode));
+            let mut disassembled_type = format!("{}", type_obj.display::<EnhancedFmt>(bytecode));
             if let Some(sup) = obj.super_ {
-                disassembled_type += &format!("\nextends {}", sup.display::<EnhancedFmt>(&bytecode));
+                disassembled_type +=
+                    &format!("\nextends {}", sup.display::<EnhancedFmt>(bytecode));
             }
             disassembled_type += &format!("\nglobal: {}", obj.global.0);
             disassembled_type += "\nfields:";
             for f in &obj.own_fields {
-                disassembled_type += &format!("\n  {}: {}", f.name.display::<EnhancedFmt>(&bytecode), f.t.display::<EnhancedFmt>(&bytecode));
+                disassembled_type += &format!(
+                    "\n  {}: {}",
+                    f.name.display::<EnhancedFmt>(bytecode),
+                    f.t.display::<EnhancedFmt>(bytecode)
+                );
             }
             disassembled_type += "\nprotos:";
             for p in &obj.protos {
-                disassembled_type += &format!("\n  {}: {} ({})", p.name.display::<EnhancedFmt>(&bytecode), bytecode.get(p.findex).display_header::<EnhancedFmt>(&bytecode), p.pindex);
+                disassembled_type += &format!(
+                    "\n  {}: {} ({})",
+                    p.name.display::<EnhancedFmt>(bytecode),
+                    bytecode
+                        .get(p.findex)
+                        .display_header::<EnhancedFmt>(bytecode),
+                    p.pindex
+                );
             }
             disassembled_type += "\nbindings:";
             for (fi, fun) in &obj.bindings {
-                disassembled_type += &format!("\n  {}: {}", fi.display::<EnhancedFmt>(&bytecode, type_obj), fun.display_header::<EnhancedFmt>(&bytecode));
+                disassembled_type += &format!(
+                    "\n  {}: {}",
+                    fi.display::<EnhancedFmt>(bytecode, type_obj),
+                    fun.display_header::<EnhancedFmt>(bytecode)
+                );
             }
             disassembled_type
         }
-        Type::Enum { global, constructs, .. } => {
+        Type::Enum {
+            global, constructs, ..
+        } => {
             let mut disassembled_type = format!("global: {}", global.0);
             disassembled_type += "\nconstructs:";
             for c in constructs {
-                disassembled_type += &format!("\n  {}:", c.name(&bytecode));
+                disassembled_type += &format!("\n  {}:", c.name(bytecode));
                 for (i, p) in c.params.iter().enumerate() {
-                    disassembled_type += &format!("\n    {i}: {}", p.display::<EnhancedFmt>(&bytecode));
+                    disassembled_type +=
+                        &format!("\n    {i}: {}", p.display::<EnhancedFmt>(bytecode));
                 }
             }
             disassembled_type
@@ -343,7 +370,7 @@ fn save_function_list(file_path: &str, app_data: State<Storage>) -> Result<(), S
     let functions = &bytecode.functions;
     let mut function_names = Vec::new();
     for function in functions {
-        function_names.push(function.name(&bytecode).to_string() + &function.findex.to_string());
+        function_names.push(function.name(bytecode).to_string() + &function.findex.to_string());
     }
 
     let mut file = std::fs::File::create(file_path).map_err(|e| e.to_string())?;
@@ -362,8 +389,7 @@ fn save_type_list(file_path: &str, app_data: State<Storage>) -> Result<(), Strin
     let mut type_names = Vec::new();
     let mut index = 0;
     for t in types {
-        type_names.push(t.display::<EnhancedFmt>(&bytecode).to_string() +
-            "@" + &index.to_string());
+        type_names.push(t.display::<EnhancedFmt>(bytecode).to_string() + "@" + &index.to_string());
         index += 1;
     }
 
@@ -399,11 +425,15 @@ fn save_file_list(file_path: &str, app_data: State<Storage>) -> Result<(), Strin
 }
 
 #[tauri::command]
-fn save_disassembled_code(file_path: &str, function_index: &str, app_data: State<Storage>) -> Result<(), String> {
+fn save_disassembled_code(
+    file_path: &str,
+    function_index: &str,
+    app_data: State<Storage>,
+) -> Result<(), String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
     let functions = &bytecode.functions;
-    
+
     let mut function = None;
     for f in functions {
         if f.findex.to_string() == function_index {
@@ -411,8 +441,8 @@ fn save_disassembled_code(file_path: &str, function_index: &str, app_data: State
             break;
         }
     }
-    
-    let disassembled_code = format!("{}", function.unwrap().display::<EnhancedFmt>(&bytecode));
+
+    let disassembled_code = format!("{}", function.unwrap().display::<EnhancedFmt>(bytecode));
 
     let mut file = std::fs::File::create(file_path).map_err(|e| e.to_string())?;
     writeln!(file, "{}", disassembled_code).map_err(|e| e.to_string())?;
@@ -444,7 +474,10 @@ fn read_config(config_file_path: &str, app_handle: &tauri::AppHandle) -> Result<
     Ok(())
 }
 
-fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) -> Result<(), String> {
+fn create_default_config(
+    config_file_path: &str,
+    app_handle: &tauri::AppHandle,
+) -> Result<(), String> {
     let _ = std::fs::File::create(config_file_path).map_err(|e| e.to_string())?;
     let default_config = AppConfig {
         file_path: config_file_path.to_string(),
@@ -495,8 +528,11 @@ fn set_config_colorscheme(colorscheme: &str, app_data: State<Storage>) -> Result
 #[tauri::command]
 fn add_config_recent_file(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let recent_files = app_data.app_config.recent_files.get_or_insert_with(|| Vec::new());
-    
+    let recent_files = app_data
+        .app_config
+        .recent_files
+        .get_or_insert_with(Vec::new);
+
     if !recent_files.contains(&file_path.to_string()) {
         recent_files.push(file_path.to_string());
     }
@@ -514,17 +550,24 @@ fn get_config_theme(app_data: State<Storage>) -> Result<String, String> {
 #[tauri::command]
 fn get_config_colorscheme(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let colorscheme = app_data.app_config.colorscheme.as_ref().ok_or("colorscheme not set")?;
+    let colorscheme = app_data
+        .app_config
+        .colorscheme
+        .as_ref()
+        .ok_or("colorscheme not set")?;
     Ok(colorscheme.to_string())
 }
 
 #[tauri::command]
 fn get_config_recent_files(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let recent_files = app_data.app_config.recent_files.as_ref().ok_or("recent_files not set")?;
+    let recent_files = app_data
+        .app_config
+        .recent_files
+        .as_ref()
+        .ok_or("recent_files not set")?;
     Ok(recent_files.clone())
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
