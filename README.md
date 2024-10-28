@@ -8,9 +8,11 @@ Repository contains:
 # ByteSto4t
 Simple application that allows you to see internals of `hlboot.dat` file.
 
-![ByteSto4t Screenshot1](docs/images/bytesto4t_1.png)
+<div style="display: flex; justify-content: space-around;">
+  <img src="docs/images/bytesto4t_1.png" alt="ByteSto4t Screenshot1" width="45%">
+  <img src="docs/images/bytesto4t_2.png" alt="ByteSto4t Screenshot2" width="45%">
+</div>
 
-![ByteSto4t Screenshot2](docs/images/bytesto4t_2.png)
 
 # Planned
 
