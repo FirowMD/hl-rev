@@ -1,5 +1,5 @@
 # hl-rev
-Hashlink reversing tools.
+[Hashlink](https://github.com/HaxeFoundation/hashlink) reversing tools.
 
 Repository contains:
 - bytesto4t - GUI app based on [hlbc](https://github.com/Gui-Yom/hlbc)
