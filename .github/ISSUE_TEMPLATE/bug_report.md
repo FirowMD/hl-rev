@@ -14,10 +14,10 @@ Thank you for reporting an issue! Please complete as much of the template as pos
 ### Version
 
 <!--
-List all versions of the valentine crates you're using. 
+List all versions of the bytesto4t crates you're using. 
 The easiest way to gather this is by running cargo tree:
 
-`cargo tree | grep valentine`
+`cargo tree | grep bytesto4t`
 -->
 
 ### Platform
