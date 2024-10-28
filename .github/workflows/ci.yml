@@ -25,7 +25,7 @@ jobs:
           override: true
 
       - name: Build Rust project
-        run: cargo build
+        run: cargo build --manifest-path bytesto4t/src-tauri/Cargo.toml
 
       # https://bun.sh/guides/runtime/cicd
 
@@ -38,10 +38,10 @@ jobs:
         run: bun install -g @tauri-apps/cli
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --cwd bytesto4t
 
       - name: Build Svelte app
-        run: bun run build
+        run: bun run build --cwd bytesto4t
 
       - name: Build Tauri app
-        run: bun run tauri build
+        run: bun run tauri build --cwd bytesto4t
