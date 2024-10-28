@@ -34,29 +34,9 @@ jobs:
     
       - name: Upload build artifact
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: bytesto4t-msi
-          files: bytesto4t/src-tauri/target/release/bundle/msi/bytesto4t_0.1.0_x64_en-US.msi
-
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: Install bun
-        uses: oven-sh/setup-bun@v2
-      
-      - name: Install dependencies
-        run: bun install
-        working-directory: bytesto4t
-        
-      - name: Build Svelte app
-        run: bun run tauri build
-        working-directory: bytesto4t
+          name: bytesto4t-artifacts
+          files: |
+            bytesto4t/src-tauri/target/release/bundle/msi/bytesto4t_0.1.0_x64_en-US.msi
+            bytesto4t/src-tauri/target/release/bundle/nsis/bytesto4t_0.1.0_x64-setup.exe
