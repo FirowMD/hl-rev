@@ -4,6 +4,7 @@
 Repository contains:
 - bytesto4t - GUI app based on [hlbc](https://github.com/Gui-Yom/hlbc)
 - HLBOOT.DAT.bt - template file for [010 Editor](https://www.sweetscape.com/010editor/)
+- hlboot.hexpat - pattern file for [ImHex](https://github.com/WerWolv/ImHex)
 
 # ByteSto4t
 Simple application that allows you to see internals of `hlboot.dat` file.
@@ -18,7 +19,6 @@ Simple application that allows you to see internals of `hlboot.dat` file.
 
 ## General
 
-- [ImHex](https://github.com/WerWolv/ImHex) `hlboot.dat` pattern
 - [Cheat Engine](https://www.cheatengine.org/) script that allows you to export all jit-compiled functions
 
 ## ByteSto4t
