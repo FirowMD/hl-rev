@@ -337,6 +337,14 @@ fn get_disassembled_type(type_index: &str, app_data: State<Storage>) -> Result<S
 }
 
 #[tauri::command]
+async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    match std::fs::read(path) {
+        Ok(bytes) => Ok(bytes),
+        Err(e) => Err(e.to_string())
+    }
+}
+
+#[tauri::command]
 fn save_function_list(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
@@ -525,6 +533,12 @@ fn get_config_recent_files(app_data: State<Storage>) -> Result<Vec<String>, Stri
     Ok(recent_files.clone())
 }
 
+#[tauri::command]
+fn get_target_file_path(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.target_file_path.clone())
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -561,6 +575,7 @@ pub fn run() {
             get_dashboard_info,
             get_disassembled_code,
             get_disassembled_type,
+            read_binary_file,
             save_function_list,
             save_type_list,
             save_file_list,
@@ -573,6 +588,7 @@ pub fn run() {
             get_config_theme,
             get_config_colorscheme,
             get_config_recent_files,
+            get_target_file_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
