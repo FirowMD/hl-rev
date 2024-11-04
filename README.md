@@ -9,11 +9,13 @@ Repository contains:
 # ByteSto4t
 Simple application that allows you to see internals of `hlboot.dat` file.
 
-<div style="display: flex; justify-content: space-around;">
-  <img src="docs/images/bytesto4t_1.png" alt="ByteSto4t Screenshot1" width="45%">
-  <img src="docs/images/bytesto4t_2.png" alt="ByteSto4t Screenshot2" width="45%">
+<div align="center">
+  <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem;">
+    <img src="docs/images/bytesto4t_1.png" width="30%" alt="ByteSto4t Dashboard" />
+    <img src="docs/images/bytesto4t_2.png" width="30%" alt="ByteSto4t Hex Editor" />
+    <img src="docs/images/bytesto4t_3.png" width="30%" alt="ByteSto4t Disassembler" />
+  </div>
 </div>
-
 
 # Planned
 
@@ -23,7 +25,6 @@ Simple application that allows you to see internals of `hlboot.dat` file.
 
 ## ByteSto4t
 
-- Hex View
 - History View
 - X-references
 - Zoom (increase/decrease size of UI elements)
