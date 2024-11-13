@@ -14,3 +14,8 @@ release-x86_64-unknown-linux-gnu:
 install-deps:
 	echo "Installing dependencies..."
 	cargo install cross
+
+changelog:
+	@echo "Generating changelog..."
+	git cliff --config detailed > CHANGELOG.md
+	@echo "Done."
