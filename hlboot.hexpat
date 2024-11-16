@@ -611,7 +611,7 @@ struct Hlbc {
     HlbcVar nints;
     HlbcVar nfloats;
     HlbcVar nstrings;
-    if (version >= 4) {
+    if (version >= 5) {
         HlbcVar nbytes;
     }
     HlbcVar ntypes;
@@ -627,7 +627,7 @@ struct Hlbc {
     u32 string_data;
     char strings[string_data];
     HlbcVar string_sizes[nstrings.value];
-    if (version >= 4) {
+    if (version >= 5) {
         u32 byte_data;
         u8 bytes[byte_data];
         HlbcVar byte_sizes[nbytes.value];

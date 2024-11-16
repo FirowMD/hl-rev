@@ -737,7 +737,7 @@ typedef struct
     HLBC_VAR Nints;
     HLBC_VAR Nfloats;
     HLBC_VAR Nstrings;
-    if (Version >= 4)
+    if (Version >= 5)
     {
         HLBC_VAR Nbytes;
     }
@@ -774,7 +774,7 @@ typedef struct
         HLBC_VAR StringSizes[Nstrings.Value] <style=sHeading3>;
     }
 
-    if (Version >= 4)
+    if (Version >= 5)
     {
         Printf("Bytes: %d\n", Nbytes.Value);
         UINT32 ByteData;
