@@ -6,6 +6,7 @@ use hlbc::Bytecode;
 use hlbc::Resolve;
 use hlbc::fmt::EnhancedFmt;
 use hlbc::types::Type;
+use hlbc::opcodes::Opcode;
 use hlbc_decompiler::{decompile_function, decompile_class};
 use tauri::State;
 use tauri::Manager;
@@ -18,10 +19,18 @@ struct AppConfig {
     recent_files: Option<Vec<String>>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct AppItem {
+    index: String,
+    typ: String
+}
+
 struct AppData {
     target_file_path: String,
     bytecode: Option<Bytecode>,
     app_config: AppConfig,
+    #[allow(dead_code)]
+    selected_item: Option<AppItem>,
 }
 
 struct Storage {
@@ -186,50 +195,38 @@ fn get_float_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
 
 
 #[tauri::command]
-fn get_decompiled_code(function_index: &str, app_data: State<Storage>) -> Result<String, String> {
+fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let functions = &bytecode.functions;
+    let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
 
-    let mut function = None;
-    for f in functions {
-        if f.findex.to_string() == function_index {
-            function = Some(f);
-            break;
+    match app_item.typ.as_str() {
+        "function" => {
+            let functions = &bytecode.functions;
+            if index >= functions.len() {
+                return Err("Function index out of bounds".to_string());
+            }
+            let function = &functions[index];
+            Ok(format!("{}", decompile_function(&bytecode, &function)
+                .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
         }
-    }
-
-    let mut decompiled_code = String::new();
-
-    if let Some(f) = function {
-        decompiled_code = format!("{}", decompile_function(&bytecode, &f)
-            .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2)));
-    }
-    
-    Ok(decompiled_code)
-}
-
-#[tauri::command]
-fn get_decompiled_type(type_index: &str, app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let types = &bytecode.types;
-
-    let tindex: usize = type_index[1..].parse().map_err(|_| "Invalid type index format")?;
-    if tindex >= types.len() {
-        return Err("Type index out of bounds".to_string());
-    }
-
-    let type_obj = types[tindex].clone();
-    let decompiled_code = match type_obj {
-        Type::Obj(obj) => {
-            format!("{}", decompile_class(&bytecode, &obj)
-                .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2)))
+        "class" => {
+            let types = &bytecode.types;
+            if index >= types.len() {
+                return Err("Type index out of bounds".to_string());
+            }
+            let type_obj = &types[index];
+            match type_obj {
+                Type::Obj(obj) => {
+                    Ok(format!("{}", decompile_class(&bytecode, obj)
+                        .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+                }
+                _ => Err("Type is not an object".to_string()),
+            }
         }
-        _ => return Err("Type is not an object".to_string()),
-    };
-
-    Ok(decompiled_code)
+        _ => Err(format!("Unsupported item type: {}", app_item.typ)),
+    }
 }
 
 #[tauri::command]
@@ -267,77 +264,255 @@ fn get_dashboard_info(app_data: State<Storage>) -> Result<String, String> {
     ))
 }
 
+#[allow(dead_code)]
 #[tauri::command]
-fn get_disassembled_code(function_index: &str, app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let functions = &bytecode.functions;
-    
-    let mut function = None;
-    for f in functions {
-        if f.findex.to_string() == function_index {
-            function = Some(f);
-            break;
-        }
-    }
-    
-    let disassembled_code = format!("{}", function.unwrap().display::<EnhancedFmt>(&bytecode));
-    
-    Ok(disassembled_code)
+fn set_selected_item(app_item: AppItem, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.selected_item = Some(app_item);
+    Ok(())
 }
 
 #[tauri::command]
-fn get_disassembled_type(type_index: &str, app_data: State<Storage>) -> Result<String, String> {
+fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let types = &bytecode.types;
+    let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+    let item_type = &app_item.typ;
 
-    let tindex: usize = type_index[1..].parse().map_err(|_| "Invalid type index format")?;
-    if tindex >= types.len() {
-        return Err("Type index out of bounds".to_string());
-    }
-
-    let type_obj = &types[tindex];
-    let disassembled_type = match type_obj {
-        Type::Obj(obj) => {
-            let mut disassembled_type = format!("{}", type_obj.display::<EnhancedFmt>(&bytecode));
-            if let Some(sup) = obj.super_ {
-                disassembled_type += &format!("\nextends {}", sup.display::<EnhancedFmt>(&bytecode));
+    let info = match item_type.as_str() {
+        "function" => {
+            let functions = &bytecode.functions;
+            if index >= functions.len() {
+                return Err("Function index out of bounds".to_string());
             }
-            disassembled_type += &format!("\nglobal: {}", obj.global.0);
-            disassembled_type += "\nfields:";
-            for f in &obj.own_fields {
-                disassembled_type += &format!("\n  {}: {}", f.name.display::<EnhancedFmt>(&bytecode), f.t.display::<EnhancedFmt>(&bytecode));
-            }
-            disassembled_type += "\nprotos:";
-            for p in &obj.protos {
-                disassembled_type += &format!("\n  {}: {} ({})", p.name.display::<EnhancedFmt>(&bytecode), bytecode.get(p.findex).display_header::<EnhancedFmt>(&bytecode), p.pindex);
-            }
-            disassembled_type += "\nbindings:";
-            for (fi, fun) in &obj.bindings {
-                disassembled_type += &format!("\n  {}: {}", fi.display::<EnhancedFmt>(&bytecode, type_obj), fun.display_header::<EnhancedFmt>(&bytecode));
-            }
-            disassembled_type
+            let f = &functions[index];
+            let mut info = format!("{}", f.display::<EnhancedFmt>(&bytecode));
+            
+            info.push_str("\n\nReferences:");
+            
+            functions
+                .iter()
+                .enumerate()
+                .flat_map(|(i, f)| std::iter::repeat((i, f)).zip(f.find_fun_refs()))
+                .for_each(|((_src_idx, f), (op_idx, op, fun))| {
+                    if fun.0 == index {
+                        info.push_str(&format!(
+                            "\n{} at {}: {}",
+                            f.display_header::<EnhancedFmt>(&bytecode),
+                            op_idx,
+                            op.name()
+                        ));
+                    }
+                });
+            
+            info
         }
-        Type::Enum { global, constructs, .. } => {
-            let mut disassembled_type = format!("global: {}", global.0);
-            disassembled_type += "\nconstructs:";
-            for c in constructs {
-                disassembled_type += &format!("\n  {}:", c.name(&bytecode));
-                for (i, p) in c.params.iter().enumerate() {
-                    disassembled_type += &format!("\n    {i}: {}", p.display::<EnhancedFmt>(&bytecode));
+        "class" => {
+            let types = &bytecode.types;
+            if index >= types.len() {
+                return Err("Type index out of bounds".to_string());
+            }
+            let type_obj = &types[index];
+            let info = format!("{}", type_obj.display::<EnhancedFmt>(&bytecode));
+            
+            info
+        }
+        "file" => {
+            let debug_files = bytecode.debug_files.as_ref().ok_or("debug_files not loaded")?;
+            if index >= debug_files.len() {
+                return Err("File index out of bounds".to_string());
+            }
+            let mut info = format!("File: {}\n\nFunctions:", debug_files[index]);
+            
+            for (_i, f) in bytecode.functions.iter().enumerate() {
+                if let Some(debug_info) = f.debug_info.as_ref() {
+                    if let Some(last_file_idx) = debug_info.last().map(|(file_idx, _)| file_idx) {
+                        if *last_file_idx == index {
+                            info.push_str(&format!(
+                                "\n{}", 
+                                f.display_header::<EnhancedFmt>(&bytecode)
+                            ));
+                        }
+                    }
                 }
             }
-            disassembled_type
+            
+            info
         }
-        _ => return Err("Type is not an object".to_string()),
+        "global" => {
+            let globals = &bytecode.globals;
+            if index >= globals.len() {
+                return Err("Global index out of bounds".to_string());
+            }
+            let mut info = format!("{}", globals[index].display::<EnhancedFmt>(&bytecode));
+            
+            info.push_str("\n\nReferences:");
+            
+            if let Some(constants) = &bytecode.constants {
+                for (i, c) in constants.iter().enumerate() {
+                    if c.global.0 == index {
+                        info.push_str(&format!("\nConstant@{}: {:?}", i, c));
+                    }
+                }
+            }
+            
+            bytecode
+                .functions
+                .iter()
+                .flat_map(|f| {
+                    f.ops.iter().enumerate().map(move |(op_idx, op)| (f, op_idx, op))
+                })
+                .for_each(|(f, op_idx, op)| match op {
+                    Opcode::GetGlobal { global, .. } | Opcode::SetGlobal { global, .. } => {
+                        if global.0 == index {
+                            info.push_str(&format!(
+                                "\n{} at {}: {}",
+                                f.display_header::<EnhancedFmt>(&bytecode),
+                                op_idx,
+                                op.name()
+                            ));
+                        }
+                    }
+                    _ => {}
+                });
+            
+            info
+        }
+        "constant" => {
+            let constants = bytecode.constants.as_ref().ok_or("constants not loaded")?;
+            if index >= constants.len() {
+                return Err("Constant index out of bounds".to_string());
+            }
+            format!("{:?}", constants[index])
+        }
+        "string" => {
+            let strings = &bytecode.strings;
+            if index >= strings.len() {
+                return Err("String index out of bounds".to_string());
+            }
+            let mut info = format!("String@{}: {:?}", index, strings[index]);
+            
+            info.push_str("\n\nReferences:");
+            
+            bytecode
+                .functions
+                .iter()
+                .flat_map(|f| {
+                    f.ops.iter().enumerate().map(move |(op_idx, op)| (f, op_idx, op))
+                })
+                .for_each(|(f, op_idx, op)| match op {
+                    Opcode::String { ptr, .. } => {
+                        if ptr.0 == index {
+                            info.push_str(&format!(
+                                "\n{} at {}: {}",
+                                f.display_header::<EnhancedFmt>(&bytecode),
+                                op_idx,
+                                op.name()
+                            ));
+                        }
+                    }
+                    _ => {}
+                });
+            
+            info
+        }
+        "int" => {
+            let ints = &bytecode.ints;
+            if index >= ints.len() {
+                return Err("Int index out of bounds".to_string());
+            }
+            let mut info = format!("Int@{}: {}", index, ints[index]);
+            
+            info
+        }
+        "float" => {
+            let floats = &bytecode.floats;
+            if index >= floats.len() {
+                return Err("Float index out of bounds".to_string());
+            }
+            let mut info = format!("Float@{}: {}", index, floats[index]);
+            
+            info
+        }
+        "native" => {
+            let natives = &bytecode.natives;
+            if index >= natives.len() {
+                return Err("Native index out of bounds".to_string());
+            }
+            let mut info = format!("{}", natives[index].display::<EnhancedFmt>(&bytecode));
+            
+            info
+        }
+        _ => return Err(format!("Unsupported item type: {}", item_type)),
     };
 
-    Ok(disassembled_type)
+    Ok(info)
 }
 
 #[tauri::command]
-async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+fn get_disassembler_info(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+    let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+
+    match app_item.typ.as_str() {
+        "function" => {
+            let functions = &bytecode.functions;
+            if index >= functions.len() {
+                return Err("Function index out of bounds".to_string());
+            }
+            let function = &functions[index];
+            Ok(format!("{}", function.display::<EnhancedFmt>(&bytecode)))
+        }
+        "class" => {
+            let types = &bytecode.types;
+            if index >= types.len() {
+                return Err("Type index out of bounds".to_string());
+            }
+            let type_obj = &types[index];
+            match type_obj {
+                Type::Obj(obj) => {
+                    let mut disassembled_type = format!("{}", type_obj.display::<EnhancedFmt>(&bytecode));
+                    if let Some(sup) = obj.super_ {
+                        disassembled_type += &format!("\nextends {}", sup.display::<EnhancedFmt>(&bytecode));
+                    }
+                    disassembled_type += &format!("\nglobal: {}", obj.global.0);
+                    disassembled_type += "\nfields:";
+                    for f in &obj.own_fields {
+                        disassembled_type += &format!("\n  {}: {}", f.name.display::<EnhancedFmt>(&bytecode), f.t.display::<EnhancedFmt>(&bytecode));
+                    }
+                    disassembled_type += "\nprotos:";
+                    for p in &obj.protos {
+                        disassembled_type += &format!("\n  {}: {} ({})", p.name.display::<EnhancedFmt>(&bytecode), bytecode.get(p.findex).display_header::<EnhancedFmt>(&bytecode), p.pindex);
+                    }
+                    disassembled_type += "\nbindings:";
+                    for (fi, fun) in &obj.bindings {
+                        disassembled_type += &format!("\n  {}: {}", fi.display::<EnhancedFmt>(&bytecode, type_obj), fun.display_header::<EnhancedFmt>(&bytecode));
+                    }
+                    Ok(disassembled_type)
+                }
+                Type::Enum { global, constructs, .. } => {
+                    let mut disassembled_type = format!("global: {}", global.0);
+                    disassembled_type += "\nconstructs:";
+                    for c in constructs {
+                        disassembled_type += &format!("\n  {}:", c.name(&bytecode));
+                        for (i, p) in c.params.iter().enumerate() {
+                            disassembled_type += &format!("\n    {i}: {}", p.display::<EnhancedFmt>(&bytecode));
+                        }
+                    }
+                    Ok(disassembled_type)
+                }
+                _ => Err("Type is not an object or enum".to_string()),
+            }
+        }
+        _ => Err(format!("Unsupported item type: {}", app_item.typ)),
+    }
+}
+
+#[tauri::command]
+fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
     match std::fs::read(path) {
         Ok(bytes) => Ok(bytes),
         Err(e) => Err(e.to_string())
@@ -556,6 +731,7 @@ pub fn run() {
                     colorscheme: None,
                     recent_files: None,
                 },
+                selected_item: None,
             }),
         })
         .plugin(tauri_plugin_shell::init())
@@ -570,11 +746,11 @@ pub fn run() {
             get_constant_list,
             get_int_list,
             get_float_list,
-            get_decompiled_code,
-            get_decompiled_type,
+            get_decompiled_info,
             get_dashboard_info,
-            get_disassembled_code,
-            get_disassembled_type,
+            set_selected_item,
+            get_inspector_info,
+            get_disassembler_info,
             read_binary_file,
             save_function_list,
             save_type_list,

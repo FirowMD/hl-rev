@@ -8,14 +8,13 @@
   import { storeHighlightJs } from '@skeletonlabs/skeleton';
   import VirtualList from 'svelte-tiny-virtual-list';
 
-
   storeHighlightJs.set(hljs);
   hljs.registerLanguage('hl', function(hljs) {
     return {
       contains: [
         {
           className: 'keyword',
-          begin: /\b(?:Mov|Int|Float|Bool|Bytes|String|Null|Add|Sub|Mul|SDiv|UDiv|SMod|UMod|Shl|SShr|UShr|And|Or|Xor|Neg|Not|Incr|Decr|Call0|Call1|Call2|Call3|Call4|CallN|CallMethod|CallThis|CallClosure|StaticClosure|InstanceClosure|VirtualClosure|GetGlobal|SetGlobal|Field|SetField|GetThis|SetThis|DynGet|DynSet|JTrue|JFalse|JNull|JNotNull|JSLt|JSGte|JSGt|JSLte|JULt|JUGte|JNotLt|JNotGte|JEq|JNotEq|JAlways|ToDyn|ToSFloat|ToUFloat|ToInt|SafeCast|UnsafeCast|ToVirtual|Label|Ret|Throw|Rethrow|Switch|NullCheck|Trap|EndTrap|GetI8|GetI16|GetMem|GetArray|SetI8|SetI16|SetMem|SetArray|New|ArraySize|Type|GetType|GetTID|Ref|Unref|Setref|MakeEnum|EnumAlloc|EnumIndex|EnumField|SetEnumField|Assert|RefData|RefOffset|Nop|Prefetch|Asm)\b/
+          begin: /\b(?:Mov|Int|Float|Bool|Bytes|String|Null|Add|Sub|Mul|SDiv|UDiv|SMod|UMod|Shl|SShr|UShr|And|Or|Xor|Neg|Not|Incr|Decr|CallCall1|Call2|Call3|Call4|CallN|CallMethod|CallThis|CallClosure|StaticClosure|InstanceClosure|VirtualClosure|GetGlobal|SetGlobal|Field|SetField|GetThis|SetThis|DynGet|DynSet|JTrue|JFalse|JNull|JNotNull|JSLt|JSGte|JSGt|JSLte|JULt|JUGte|JNotLt|JNotGte|JEq|JNotEq|JAlways|ToDyn|ToSFloat|ToUFloat|ToInt|SafeCast|UnsafeCast|ToVirtual|Label|Ret|Throw|Rethrow|Switch|NullCheck|Trap|EndTrap|GetI8|GetI16|GetMem|GetArray|SetI8|SetI16|SetMem|SetArray|New|ArraySize|Type|GetType|GetTID|Ref|Unref|Setref|MakeEnum|EnumAlloc|EnumIndex|EnumField|SetEnumField|Assert|RefData|RefOffset|Nop|Prefetch|Asm)\b/
         },
         {
           className: 'number',
@@ -29,9 +28,8 @@
     };
   });
 
-
-  let noFunctionName = "Choose function to disassemble";
-  let functionName = noFunctionName;
+  let disassemblerTitle = "Disassembler";
+  let functionName = "";
   let disassembledCode = "";
   let disassembledCodeOptimized: string[] = [];
   let disassembledCodeLineNumber = 0;
@@ -39,53 +37,15 @@
   async function bytecodeItemSelectedHandler(e: Event) {
     try {
       const ev = e as CustomEvent<{name: string, type: string}>;
-      if (ev.detail.type == "function") {
-        functionSelectedHandler(e);
-      } else if (ev.detail.type == "class") {
-        typeSelectedHandler(e);
-      }
-    } catch (error) {
-      console.log("Error fetching disassembled code:", error);
-    }
-  }
+      const itemType = ev.detail.type;
 
-  async function functionSelectedHandler(e: Event) {
-    try {
-      disassembledCode = ""
-      const ev = e as CustomEvent<{name: string, type: string}>;
-      if (ev.detail.type !== "function") {
-        return;
-      }
-      functionName = ev.detail.name;
-      var findex = functionName.split("@")[1];
-      findex = "@" + findex;
-      const response = await invoke("get_disassembled_code", {functionIndex: findex}) as string;
-      if (response !== null) {
-        disassembledCode = response;
-        disassembledCodeOptimized = disassembledCode.split("\n");
-        disassembledCodeLineNumber = disassembledCodeOptimized.length;
+      if (itemType === "function" || itemType === "class") {
+        functionName = ev.detail.name;
+        
+        updateDisassembler();
       }
     } catch (error) {
-      console.log("Error fetching disassembled code:", error);
-    }
-  }
-
-  async function typeSelectedHandler(e: Event) {
-    try {
-      disassembledCode = ""
-      const ev = e as CustomEvent<{name: string, type: string}>;
-      functionName = ev.detail.name;
-      var findex = functionName.split("@")[1];
-      findex = "@" + findex;
-      const response = await invoke("get_disassembled_type", {typeIndex: findex}) as string;
-      if (response !== null) {
-        console.log(response);
-        disassembledCode = response;
-        disassembledCodeOptimized = disassembledCode.split("\n");
-        disassembledCodeLineNumber = disassembledCodeOptimized.length;
-      }
-    } catch (error) {
-      console.log("Error fetching disassembled code:", error);
+      console.log("Error fetching disassembled info:", error);
     }
   }
 
@@ -118,10 +78,19 @@
     }
   }
 
+  async function updateDisassembler() {
+    const response = await invoke("get_disassembler_info") as string;
+    if (response !== null) {
+      disassembledCode = response;
+      disassembledCodeOptimized = disassembledCode.split("\n");
+      disassembledCodeLineNumber = disassembledCodeOptimized.length;
+    }
+  }
+
   onMount(() => {
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    updateDisassembler();
   });
-
 </script>
 
 <div class="h-full overflow-y-auto">
@@ -129,9 +98,9 @@
     <header class="card-header h-12">
       <div class="flex flex-row items-start justify-between">
         <h3 class="h3">
-          {functionName}
+          {disassemblerTitle}
         </h3>
-        {#if functionName !== noFunctionName}
+        {#if functionName !== ""}
           <button type="button" class="btn variant-soft-secondary" on:click={onClickSaveDisasmHandler}>
             Save
           </button>

@@ -24,11 +24,24 @@
   async function onClickButton(e: Event) {
     const target = e.target as HTMLButtonElement;
     const functionNameElement = target.querySelector("#functionName");
+    const functionIndexElement = target.querySelector("#functionIndex");
     var funcName = "";
+    var funcIndex = "";
 
     if (functionNameElement !== null && functionNameElement.textContent !== null) {
       funcName = functionNameElement.textContent;
     }
+
+    if (functionIndexElement !== null && functionIndexElement.textContent !== null) {
+      funcIndex = functionIndexElement.textContent.substring(1);
+    }
+
+    await invoke("set_selected_item", {
+      appItem: {
+        index: funcIndex,
+        typ: "function"
+      }
+    });
 
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
@@ -64,7 +77,7 @@
         <div slot="item" let:index let:style {style}>
           <button on:click={onClickButton} type="button" class="w-full variant-glass-primary text-left truncate">
             <span id="functionName" class="pointer-events-none">{splitText(filteredList[index])[0]}</span>
-            <span class="text-primary-500 pointer-events-none">{splitText(filteredList[index])[1]}</span>
+            <span id="functionIndex" class="text-primary-500 pointer-events-none">{splitText(filteredList[index])[1]}</span>
           </button>
         </div>
       </VirtualList>

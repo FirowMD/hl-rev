@@ -5,21 +5,34 @@
   import { save } from "@tauri-apps/plugin-dialog";
   import VirtualList from 'svelte-tiny-virtual-list';
 
-  let currentName = "";
-  let currentType = "Choose item from left panel";
+  let inspectorContent = "";
+  let inspectorTitle = "Inspector";
 
   async function bytecodeItemSelectedHandler(e: Event) {
     try {
       const ev = e as CustomEvent<{name: string, type: string}>;
-      currentName = ev.detail.name;
-      currentType = "Type: " + ev.detail.type;
+
+      const index = ev.detail.name.split('@').pop();
+      if (!index) {
+        throw new Error("Invalid item name format");
+      }
+
+      updateInspector();
     } catch (error) {
-      console.log("Error fetching decompiled code:", error);
+      console.log("Error fetching inspector info:", error);
+    }
+  }
+
+  async function updateInspector() {
+    const inspectorInfo = await invoke("get_inspector_info") as string;
+    if (inspectorInfo) {
+      inspectorContent = inspectorInfo;
     }
   }
 
   onMount(() => {
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    updateInspector();
   });
 </script>
 
@@ -27,13 +40,13 @@
   <div class="card p-2 space-y-2 variant-soft-secondary h-full">
     <header class="card-header h-12">
       <div class="flex flex-row items-start justify-between">
-        <h3 class="h3">
-          {currentType}
+        <h3 class="h3 truncate">
+          {inspectorTitle}
         </h3>
       </div>
     </header>
-    <section class="card p-4 variant-soft-secondary text-left truncate overflow-x-auto w-full h-[calc(100%-3rem)]">
-      <pre class="overflow-x-auto">{currentName}</pre>
+    <section class="card p-4 variant-soft-secondary text-left w-full h-[calc(100%-3rem)]">
+      <pre class="overflow-auto h-full whitespace-pre-wrap">{inspectorContent}</pre>
     </section>
   </div>
 </div>

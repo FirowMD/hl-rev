@@ -6,7 +6,6 @@
 
   async function getDashboardInfo() {
     const response = await invoke("get_dashboard_info") as string;
-    console.log(response);
     dashboardInfo = response;
   }
 

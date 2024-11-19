@@ -26,6 +26,13 @@
       itemName = btnNameElement.innerText;
     }
 
+    await invoke("set_selected_item", {
+      appItem: {
+        index: splitText(itemName)[1].substring(1),
+        typ: "global"
+      }
+    });
+
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
         name: itemName,

@@ -19,12 +19,22 @@
 
   async function onClickButton(e: Event) {
     const target = e.target as HTMLButtonElement;
-    const btnNameElement = target
+    const btnNameElement = target;
     var itemName = "";
 
     if (btnNameElement !== null && btnNameElement.textContent !== null) {
       itemName = btnNameElement.innerText;
     }
+
+    const lastAtIndex = itemName.lastIndexOf('@');
+    const fileIndex = itemName.substring(lastAtIndex + 1);
+
+    await invoke("set_selected_item", {
+      appItem: {
+        index: fileIndex,
+        typ: "file"
+      }
+    });
 
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
