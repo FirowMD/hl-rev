@@ -22,5 +22,8 @@ Simple application that allows you to see internals of `hlboot.dat` file.
 
 ## ByteSto4t
 
+- Better Hex View (navigate to chosen element)
+- Better X-references
+- Loading function list exported with CE script
 - History View
 - Zoom (increase/decrease size of UI elements)
