@@ -11,12 +11,14 @@
     value,
     isSelected = false,
     isHighlighted = false,
-    isInSelection = false 
+    isInSelection = false,
+    isTargetOffset = false 
   } = $props<{
     value: number;
     isSelected?: boolean;
     isHighlighted?: boolean;
     isInSelection?: boolean;
+    isTargetOffset?: boolean;
   }>();
 
   let hex = $derived(value.toString(16).padStart(2, '0').toUpperCase());
@@ -29,6 +31,7 @@
     {isSelected ? 'bg-primary-500/20' : ''}
     {isHighlighted ? 'bg-secondary-500/20' : ''}
     {isInSelection ? 'bg-primary-500/10' : ''}
+    {isTargetOffset ? 'bg-tertiary-500/50' : ''}
     hover:bg-primary-500/10"
   on:click={() => dispatch('select', value)}
   on:mousedown={() => dispatch('mousedown')}

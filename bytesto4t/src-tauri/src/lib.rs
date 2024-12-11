@@ -275,6 +275,23 @@ fn set_selected_item(app_item: AppItem, app_data: State<Storage>) -> Result<(), 
 }
 
 #[tauri::command]
+fn get_selected_item_foffset(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+    let typ = app_item.typ.as_str();
+    match typ {
+        "function" => {
+            let functions = &bytecode.functions;
+            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+            let function = &functions[index];
+            Ok(format!("{}", function.foffset))
+        }
+        _ => Err(format!("Unsupported item type: {}", typ)),
+    }
+}
+
+#[tauri::command]
 fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
@@ -771,6 +788,7 @@ pub fn run() {
             get_decompiled_info,
             get_dashboard_info,
             set_selected_item,
+            get_selected_item_foffset,
             get_inspector_info,
             get_disassembler_info,
             read_binary_file,

@@ -16,7 +16,8 @@
     bytesPerRow, 
     searchResults = [],
     selection,
-    scrollPosition = 0
+    scrollPosition = 0,
+    targetOffset = -1
   } = $props<{
     data: Uint8Array;
     bytesPerRow: number;
@@ -27,6 +28,7 @@
       isSelecting: boolean;
     };
     scrollPosition?: number;
+    targetOffset?: number;
   }>();
 
   // Virtual scrolling state
@@ -136,6 +138,7 @@
                 value={byte}
                 isHighlighted={searchResults.includes(rowOffset + colIndex)}
                 isInSelection={isInSelection(rowIndex, colIndex)}
+                isTargetOffset={targetOffset === (rowOffset + colIndex)}
                 on:mousedown={() => handleMouseDown(rowIndex, colIndex)}
                 on:mouseenter={() => handleMouseEnter(rowIndex, colIndex)}
                 on:select={() => dispatch('select', { 

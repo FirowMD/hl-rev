@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
   import ViewDashboard from "./ViewDashboard.svelte";
   import ViewInspector from "./ViewInspector.svelte";
@@ -19,6 +19,8 @@
   const isLargeFile = $derived((fileData?.size ?? 0) > 1024 * 1024);
   
   let hexScrollPosition = $state(0);
+  let hexTargetOffset = $state(-1);
+  let lastKnownFoffset = $state<number | null>(null);
 
   async function loadFile() {
     try {
@@ -40,8 +42,38 @@
     hexScrollPosition = event.detail.position;
   }
 
-  onMount(async () => {
-    await loadFile();
+  async function bytecodeItemSelectedHandler(e: Event) {
+    try {
+      const foffset = await invoke("get_selected_item_foffset") as string;
+      if (foffset) {
+        const offset = parseInt(foffset);
+        if (!isNaN(offset)) {
+          lastKnownFoffset = offset;
+          // Only update target offset if we're already on hex tab
+          if (tabSet === 4) {
+            hexTargetOffset = offset;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error getting foffset:', error);
+    }
+  }
+
+  // Watch for tab changes
+  $effect(() => {
+    if (tabSet === 4 && lastKnownFoffset !== null) {
+      hexTargetOffset = lastKnownFoffset;
+    }
+  });
+
+  onMount(() => {
+    window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    loadFile();
+  });
+
+  onDestroy(() => {
+    window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
   });
 
   let tabSet = $state(0);
@@ -72,6 +104,7 @@
           data={fileData.buffer} 
           bytesPerRow={16}
           scrollPosition={hexScrollPosition}
+          targetOffset={hexTargetOffset}
           on:scroll={handleHexScroll}
         />
       {:else if tabSet === 5}

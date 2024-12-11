@@ -28,6 +28,11 @@
     if (inspectorInfo) {
       inspectorContent = inspectorInfo;
     }
+
+    const foffset = await invoke("get_selected_item_foffset") as string;
+    if (foffset) {
+      inspectorContent += `\n\nFunction Offset: ${foffset}`;
+    }
   }
 
   onMount(() => {

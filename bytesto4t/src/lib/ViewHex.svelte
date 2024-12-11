@@ -12,11 +12,13 @@
   const { 
     data, 
     bytesPerRow = 16,
-    scrollPosition = 0 
+    scrollPosition = 0,
+    targetOffset = -1 
   } = $props<{
     data: Uint8Array;
     bytesPerRow?: number;
     scrollPosition?: number;
+    targetOffset?: number;
   }>();
 
   let searchResults = $state<number[]>([]);
@@ -102,6 +104,14 @@
     
     navigator.clipboard.writeText(hexString.toUpperCase());
   }
+
+  $effect(() => {
+    if (targetOffset >= 0) {
+      const targetRow = Math.floor(targetOffset / bytesPerRow);
+      const scrollTop = targetRow * 24;
+      dispatch('scroll', { position: scrollTop });
+    }
+  });
 </script>
 
 <svelte:window 
@@ -118,6 +128,7 @@
     {searchResults}
     {selection}
     {scrollPosition}
+    targetOffset={targetOffset}
     on:select={handleSelect}
     on:selectionStart={handleSelectionStart}
     on:selectionMove={handleSelectionMove}
