@@ -306,7 +306,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Function index out of bounds".to_string());
             }
             let f = &functions[index];
-            let mut info = format!("{}", f.display::<EnhancedFmt>(&bytecode));
+            let mut info = format!("{}{}", f.name.display::<EnhancedFmt>(&bytecode), f.findex);
             
             info.push_str("\n\nReferences:");
             
