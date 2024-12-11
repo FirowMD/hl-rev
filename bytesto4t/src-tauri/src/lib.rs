@@ -10,6 +10,7 @@ use hlbc::opcodes::Opcode;
 use hlbc_decompiler::{decompile_function, decompile_class};
 use tauri::State;
 use tauri::Manager;
+use std::io::BufRead;
 
 #[derive(Serialize, Deserialize)]
 struct AppConfig {
@@ -31,6 +32,7 @@ struct AppData {
     app_config: AppConfig,
     #[allow(dead_code)]
     selected_item: Option<AppItem>,
+    function_addresses: Option<Vec<String>>,
 }
 
 struct Storage {
@@ -422,8 +424,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
             if index >= ints.len() {
                 return Err("Int index out of bounds".to_string());
             }
-            let mut info = format!("Int@{}: {}", index, ints[index]);
-            
+            let info = format!("Int@{}: {}", index, ints[index]);
             info
         }
         "float" => {
@@ -431,8 +432,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
             if index >= floats.len() {
                 return Err("Float index out of bounds".to_string());
             }
-            let mut info = format!("Float@{}: {}", index, floats[index]);
-            
+            let info = format!("Float@{}: {}", index, floats[index]);
             info
         }
         "native" => {
@@ -440,8 +440,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
             if index >= natives.len() {
                 return Err("Native index out of bounds".to_string());
             }
-            let mut info = format!("{}", natives[index].display::<EnhancedFmt>(&bytecode));
-            
+            let info = format!("{}", natives[index].display::<EnhancedFmt>(&bytecode));
             info
         }
         _ => return Err(format!("Unsupported item type: {}", item_type)),
@@ -517,6 +516,28 @@ fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
         Ok(bytes) => Ok(bytes),
         Err(e) => Err(e.to_string())
     }
+}
+
+#[tauri::command]
+fn load_function_addresses_from_file(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut function_addresses = Vec::new();
+    let file = std::fs::File::open(file_path).map_err(|e| e.to_string())?;
+    let reader = std::io::BufReader::new(file);
+    for line in reader.lines() {
+        function_addresses.push(line.map_err(|e| e.to_string())?);
+    }
+
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.function_addresses = Some(function_addresses);
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_function_addresses(app_data: State<Storage>) -> Result<Vec<String>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let function_addresses = app_data.function_addresses.as_ref().ok_or("function_addresses not loaded")?;
+    Ok(function_addresses.clone())
 }
 
 #[tauri::command]
@@ -732,6 +753,7 @@ pub fn run() {
                     recent_files: None,
                 },
                 selected_item: None,
+                function_addresses: None,
             }),
         })
         .plugin(tauri_plugin_shell::init())
@@ -752,6 +774,8 @@ pub fn run() {
             get_inspector_info,
             get_disassembler_info,
             read_binary_file,
+            load_function_addresses_from_file,
+            get_function_addresses,
             save_function_list,
             save_type_list,
             save_file_list,
