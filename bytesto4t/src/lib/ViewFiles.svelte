@@ -10,10 +10,12 @@
   let filteredList: string[] = [];
 
   async function fetchFileList() {
-    const response = await invoke("get_file_list") as string[];
-
-    if (response !== null) {
-      fileList = response;
+    try {
+      const response = await invoke("get_file_list") as string[];
+      fileList = response || [];  // Use empty array if response is null/undefined
+    } catch (error) {
+      console.error('Failed to fetch file list:', error);
+      fileList = [];  // Set empty array on error
     }
   }
 
