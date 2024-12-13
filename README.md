@@ -12,9 +12,14 @@ Simple application that allows you to see internals of `hlboot.dat` file.
 
 <div align="center">
   <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem;">
-    <img src="docs/images/bytesto4t_1.png" width="30%" alt="ByteSto4t Dashboard" />
-    <img src="docs/images/bytesto4t_2.png" width="30%" alt="ByteSto4t Hex Editor" />
-    <img src="docs/images/bytesto4t_3.png" width="30%" alt="ByteSto4t Disassembler" />
+    <img src="docs/images/bytesto4t_1.png" width="20%" />
+    <img src="docs/images/bytesto4t_2.png" width="20%" />
+    <img src="docs/images/bytesto4t_3.png" width="20%" />
+    <img src="docs/images/bytesto4t_4.png" width="20%" />
+    <img src="docs/images/bytesto4t_5.png" width="20%" />
+    <img src="docs/images/bytesto4t_6.png" width="20%" />
+    <img src="docs/images/bytesto4t_7.png" width="20%" />
+    <img src="docs/images/bytesto4t_8.png" width="20%" />
   </div>
 </div>
 
@@ -22,8 +27,4 @@ Simple application that allows you to see internals of `hlboot.dat` file.
 
 ## ByteSto4t
 
-- Better Hex View (navigate to chosen element)
-- Better X-references
-- Loading function list exported with CE script
 - History View
-- Zoom (increase/decrease size of UI elements)
