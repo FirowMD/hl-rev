@@ -286,7 +286,23 @@ fn get_selected_item_foffset(app_data: State<Storage>) -> Result<String, String>
             let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
             let function = &functions[index];
             Ok(format!("{}", function.foffset))
-        }
+        },
+        "native" => {
+            let natives = &bytecode.natives;
+            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+            let native = &natives[index];
+            Ok(format!("{}", native.foffset))
+        },
+        "class" => {
+            let types = &bytecode.types;
+            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+            let type_obj = &types[index];
+            match type_obj {
+                Type::Obj(obj) => Ok(format!("{}", obj.foffset)),
+                Type::Fun(fun) => Ok(format!("{}", fun.foffset)),
+                _ => Err("Type is not an object".to_string()),
+            }
+        },
         _ => Err(format!("Unsupported item type: {}", typ)),
     }
 }
@@ -296,7 +312,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+    let mut index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
     let item_type = &app_item.typ;
 
     let info = match item_type.as_str() {
@@ -306,8 +322,12 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Function index out of bounds".to_string());
             }
             let f = &functions[index];
-            let mut info = format!("{}{}", f.name.display::<EnhancedFmt>(&bytecode), f.findex);
+            let mut info = format!("{}{}\nFile Offset: {:X}", 
+                f.name.display::<EnhancedFmt>(&bytecode), 
+                f.findex,
+                f.foffset);
             
+            let findex = f.findex;
             info.push_str("\n\nReferences:");
             
             functions
@@ -315,7 +335,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
                 .enumerate()
                 .flat_map(|(i, f)| std::iter::repeat((i, f)).zip(f.find_fun_refs()))
                 .for_each(|((_src_idx, f), (op_idx, op, fun))| {
-                    if fun.0 == index {
+                    if fun.0 == findex.0 {
                         info.push_str(&format!(
                             "\n{} at {}: {}",
                             f.display_header::<EnhancedFmt>(&bytecode),
@@ -333,7 +353,15 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Type index out of bounds".to_string());
             }
             let type_obj = &types[index];
-            let info = format!("{}", type_obj.display::<EnhancedFmt>(&bytecode));
+            let info = match type_obj {
+                Type::Fun(fun) => format!("{}\nFile Offset: {:X}", 
+                    type_obj.display::<EnhancedFmt>(&bytecode),
+                    fun.foffset),
+                Type::Obj(obj) => format!("{}\nFile Offset: {:X}", 
+                    type_obj.display::<EnhancedFmt>(&bytecode),
+                    obj.foffset),
+                _ => format!("{}", type_obj.display::<EnhancedFmt>(&bytecode))
+            };
             
             info
         }
@@ -457,7 +485,11 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
             if index >= natives.len() {
                 return Err("Native index out of bounds".to_string());
             }
-            let info = format!("{}", natives[index].display::<EnhancedFmt>(&bytecode));
+            let native = &natives[index];
+            let info = format!("{}\nFile Offset: {:X}", 
+                native.display::<EnhancedFmt>(&bytecode),
+                native.foffset);
+            
             info
         }
         _ => return Err(format!("Unsupported item type: {}", item_type)),
