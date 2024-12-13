@@ -27,6 +27,10 @@
             extensions: ["dat"]
           },
           {
+            name: "output.hl",
+            extensions: ["hl"]
+          },
+          {
             name: "All Files",
             extensions: ["*"]
           }
