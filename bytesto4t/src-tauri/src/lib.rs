@@ -316,7 +316,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let mut index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+    let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
     let item_type = &app_item.typ;
 
     let info = match item_type.as_str() {
