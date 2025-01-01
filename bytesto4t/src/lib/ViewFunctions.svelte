@@ -43,9 +43,17 @@
       }
     });
 
+    await invoke("add_history_item", {
+      item: {
+        name: funcName + functionIndexElement?.textContent,
+        typ: "function",
+        timestamp: new Date().toISOString()
+      }
+    });
+
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
-        name: funcName,
+        name: funcName + functionIndexElement?.textContent,
         type: "function"
       }
     });

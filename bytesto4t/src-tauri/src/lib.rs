@@ -26,6 +26,13 @@ struct AppItem {
     typ: String
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct HistoryItem {
+    name: String,
+    typ: String,
+    timestamp: String,
+}
+
 struct AppData {
     target_file_path: String,
     bytecode: Option<Bytecode>,
@@ -33,6 +40,7 @@ struct AppData {
     #[allow(dead_code)]
     selected_item: Option<AppItem>,
     function_addresses: Option<Vec<String>>,
+    history_items: Mutex<Vec<HistoryItem>>,
 }
 
 struct Storage {
@@ -788,6 +796,29 @@ fn get_target_file_path(app_data: State<Storage>) -> Result<String, String> {
     Ok(app_data.target_file_path.clone())
 }
 
+#[tauri::command]
+async fn add_history_item(
+    app_data: State<'_, Storage>,
+    item: HistoryItem,
+) -> Result<(), String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let mut history = app_data.history_items.lock().map_err(|e| e.to_string())?;
+    
+    if history.is_empty() || history[0].name != item.name || history[0].typ != item.typ {
+        history.insert(0, item);
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_history_items(
+    app_data: State<'_, Storage>,
+) -> Result<Vec<HistoryItem>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let history = app_data.history_items.lock().map_err(|e| e.to_string())?;
+    Ok(history.clone())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -807,6 +838,7 @@ pub fn run() {
                 },
                 selected_item: None,
                 function_addresses: None,
+                history_items: Mutex::new(Vec::new()),
             }),
         })
         .plugin(tauri_plugin_shell::init())
@@ -843,6 +875,8 @@ pub fn run() {
             get_config_colorscheme,
             get_config_recent_files,
             get_target_file_path,
+            add_history_item,
+            get_history_items,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

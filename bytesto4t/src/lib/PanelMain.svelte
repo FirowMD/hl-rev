@@ -6,9 +6,9 @@
   import ViewInspector from "./ViewInspector.svelte";
   import ViewDisassembler from "./ViewDisassembler.svelte";
   import ViewDecompiler from "./ViewDecompiler.svelte";
-  import ViewHex from "./ViewHex.svelte";
   import ViewTools from "./ViewTools.svelte";
   import ViewSettings from "./ViewSettings.svelte";
+  import ViewHistory from "./ViewHistory.svelte";
 
   let fileData = $state<{
     buffer: Uint8Array,
@@ -86,7 +86,7 @@
     <Tab bind:group={tabSet} name="tabDisassembler" value={2}>Disassembler</Tab>
     <Tab bind:group={tabSet} name="tabDecompiler" value={3}>Decompiler</Tab>
     <Tab bind:group={tabSet} name="tabHex" value={4}>
-      Hex {#if fileData}({(fileData.size / 1024).toFixed(1)} KB){/if}
+      History
     </Tab>
     <Tab bind:group={tabSet} name="tabTools" value={5}>Tools</Tab>
     <Tab bind:group={tabSet} name="tabSettings" value={6}>Settings</Tab>
@@ -99,14 +99,8 @@
         <ViewDisassembler />
       {:else if tabSet === 3}
         <ViewDecompiler />
-      {:else if tabSet === 4 && fileData}
-        <ViewHex 
-          data={fileData.buffer} 
-          bytesPerRow={16}
-          scrollPosition={hexScrollPosition}
-          targetOffset={hexTargetOffset}
-          on:scroll={handleHexScroll}
-        />
+      {:else if tabSet === 4}
+        <ViewHistory />
       {:else if tabSet === 5}
         <ViewTools />
       {:else if tabSet === 6}
