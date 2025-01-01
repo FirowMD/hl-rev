@@ -210,8 +210,10 @@ fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Function index out of bounds".to_string());
             }
             let function = &functions[index];
-            Ok(format!("{}", decompile_function(&bytecode, &function)
-                .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+            decompile_function(&bytecode, &function)
+                .map_err(|e| format!("Decompilation failed: {}", e))
+                .map(|decompiled| format!("{}", decompiled
+                    .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
         }
         "class" => {
             let types = &bytecode.types;
@@ -221,8 +223,10 @@ fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
             let type_obj = &types[index];
             match type_obj {
                 Type::Obj(obj) => {
-                    Ok(format!("{}", decompile_class(&bytecode, obj)
-                        .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+                    decompile_class(&bytecode, obj)
+                        .map_err(|e| format!("Decompilation failed: {}", e))
+                        .map(|decompiled| format!("{}", decompiled
+                            .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
                 }
                 _ => Err("Type is not an object".to_string()),
             }
