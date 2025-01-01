@@ -714,7 +714,7 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
     let default_config = AppConfig {
         file_path: config_file_path.to_string(),
         theme: Some("dark".to_string()),
-        colorscheme: Some("crimson".to_string()),
+        colorscheme: Some("hamlindigo".to_string()),
         recent_files: Some(Vec::new()),
     };
     let default_config_str = serde_json::to_string(&default_config).map_err(|e| e.to_string())?;
