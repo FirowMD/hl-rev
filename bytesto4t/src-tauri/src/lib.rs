@@ -33,6 +33,12 @@ struct HistoryItem {
     timestamp: String,
 }
 
+#[derive(Debug)]
+struct Reference {
+    element_index: usize,
+    references: Vec<String>
+}
+
 struct AppData {
     target_file_path: String,
     bytecode: Option<Bytecode>,
@@ -41,6 +47,7 @@ struct AppData {
     selected_item: Option<AppItem>,
     function_addresses: Option<Vec<String>>,
     history_items: Mutex<Vec<HistoryItem>>,
+    references: Option<Reference>,
 }
 
 struct Storage {
@@ -511,6 +518,40 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn clear_references(app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.references = None;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_all_references(elem_idx: usize, app_data: State<Storage>) -> Result<Vec<String>, String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+
+    let references = bytecode.functions
+        .iter()
+        .enumerate()
+        .flat_map(|(i, f)| {
+            f.find_elem_refs(elem_idx)
+                .map(move |(pos, op)| format!("{}{}@{}###{}###{}", 
+                    f.name(&bytecode), 
+                    f.findex,
+                    i,
+                    pos, 
+                    op.name()))
+        })
+        .collect();
+
+    app_data.references = Some(Reference {
+        element_index: elem_idx,
+        references
+    });
+
+    Ok(app_data.references.as_ref().unwrap().references.clone())
+}
+
+#[tauri::command]
 fn get_disassembler_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
@@ -820,6 +861,12 @@ async fn get_history_items(
     Ok(history.clone())
 }
 
+#[tauri::command]
+fn get_saved_references(app_data: State<Storage>) -> Result<Option<(usize, Vec<String>)>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.references.as_ref().map(|r| (r.element_index, r.references.clone())))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -839,6 +886,7 @@ pub fn run() {
                 selected_item: None,
                 function_addresses: None,
                 history_items: Mutex::new(Vec::new()),
+                references: None,
             }),
         })
         .plugin(tauri_plugin_shell::init())
@@ -858,6 +906,8 @@ pub fn run() {
             set_selected_item,
             get_selected_item_foffset,
             get_inspector_info,
+            clear_references,
+            get_all_references,
             get_disassembler_info,
             read_binary_file,
             load_function_addresses_from_file,
@@ -877,6 +927,7 @@ pub fn run() {
             get_target_file_path,
             add_history_item,
             get_history_items,
+            get_saved_references,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

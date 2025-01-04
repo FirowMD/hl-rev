@@ -4,6 +4,7 @@
   import { open, message } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
   import { BaseDirectory, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
+  import VirtualList from 'svelte-tiny-virtual-list';
 
   interface FileStatus {
     name: string;
@@ -13,6 +14,8 @@
   let addressesStatus: FileStatus | null = $state(null);
   let filteredStatus: FileStatus | null = $state(null);
   let recognizedPreview: string = $state("");
+  let elementIndex: number | null = $state(null);
+  let references: string[] = $state([]);
 
   async function updateRecognizedPreview() {
     if (!loadedContent) return;
@@ -244,9 +247,119 @@
     }
   }
 
+  async function onClickFindReferencesHandler() {
+    if (elementIndex === null) {
+      elementIndex = null;
+      references = [];
+      await invoke("clear_references");
+      return;
+    }
+
+    try {
+      references = await invoke("get_all_references", { elemIdx: elementIndex });
+
+      if (references.length === 0) {
+        await message(`No references found for element ${elementIndex}`, { title: "Info", kind: "info" });
+      }
+    } catch (error) {
+      await message(
+        `Failed to find references: ${error}`,
+        { title: "Error", kind: "error" }
+      );
+    }
+  }
+
+  async function onClickReference(ref: string) {
+    const [funcPart] = ref.split('###');
+    const [name, id, findex] = funcPart.split('@');
+    const fullName = `${name}@${id}@${findex}`;
+
+    console.log("findex: `" + findex + "`");
+    await invoke("set_selected_item", {
+      appItem: {
+        index: findex,
+        typ: "function"
+      }
+    });
+
+    console.log("fullName: `" + fullName + "`");
+    await invoke("add_history_item", {
+      item: {
+        name: fullName,
+        typ: "function",
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    console.log("fullName: `" + fullName + "`");
+    const ev = new CustomEvent("bytecode-item-selected", {
+      detail: {
+        name: fullName,
+        type: "function"
+      }
+    });
+
+    window.dispatchEvent(ev);
+  }
+
+  function parseReference(ref: string) {
+    const [funcPart, pos, op] = ref.split('###');
+    return { funcPart, pos, op };
+  }
+
   let loadedContent: string | null = null;
 
+  async function loadSavedReferences() {
+    try {
+      const saved = await invoke<[number, string[]] | null>("get_saved_references");
+      if (saved) {
+        const [idx, refs] = saved;
+        elementIndex = idx;
+        references = refs;
+      }
+    } catch (error) {
+      console.error("Failed to load saved references:", error);
+    }
+  }
+
+  async function onClickSaveReferencesHandler() {
+    try {
+      if (references.length === 0) {
+        await message("No references to save", { title: "Error", kind: "error" });
+        return;
+      }
+
+      const result = await save({
+        defaultPath: `references_${elementIndex}.csv`,
+        title: "Save references",
+        filters: [{
+          name: "CSV Files",
+          extensions: ["csv"]
+        },
+        {
+          name: "All Files",
+          extensions: ["*"]
+        }]
+      });
+
+      if (result) {
+        const csvContent = references.map(ref => {
+          const { funcPart, pos, op } = parseReference(ref);
+          return `${funcPart},${pos},${op}`;
+        }).join('\n');
+
+        await writeFile(result, new TextEncoder().encode(csvContent));
+      }
+    } catch (error) {
+      await message(
+        `Failed to save references: ${error}`,
+        { title: "Error", kind: "error" }
+      );
+    }
+  }
+
   onMount(() => {
+    loadSavedReferences();
   });
 </script>
 
@@ -314,6 +427,57 @@
           </div>
         {/if}
       </div>
+    </section>
+    <section class="card p-4 variant-soft-secondary space-y-2">
+      <div class="flex justify-between items-center">
+        <h4 class="h4">Reference finder</h4>
+        {#if references.length > 0}
+          <button 
+            type="button" 
+            class="btn variant-soft-secondary" 
+            onclick={onClickSaveReferencesHandler}
+          >
+            Save to csv
+          </button>
+        {/if}
+      </div>
+      <div class="flex flex-row space-x-2">
+        <input 
+          type="number" 
+          class="input variant-form-material" 
+          placeholder="Element index"
+          bind:value={elementIndex}
+        />
+        <button 
+          type="button" 
+          class="btn variant-soft-secondary" 
+          onclick={onClickFindReferencesHandler}
+        >
+          Find
+        </button>
+      </div>
+      {#if references.length > 0}
+        <div class="card p-2 variant-soft-secondary">
+          <VirtualList
+            itemCount={references.length}
+            itemSize={35}
+            height={400}
+            width="100%"
+          >
+            <div slot="item" let:index let:style {style}>
+              {@const { funcPart, pos, op } = parseReference(references[index])}
+              <button 
+                class="grid grid-cols-3 gap-4 p-2 hover:bg-secondary-700/20 w-full text-left"
+                onclick={() => onClickReference(references[index])}
+              >
+                <div class="truncate">{funcPart}</div>
+                <div>{pos}</div>
+                <div>{op}</div>
+              </button>
+            </div>
+          </VirtualList>
+        </div>
+      {/if}
     </section>
   </div>
 </div>

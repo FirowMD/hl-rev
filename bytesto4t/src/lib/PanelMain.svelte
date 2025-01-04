@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount, onDestroy } from "svelte";
+  import { setContext } from 'svelte';
   import { TabGroup, Tab } from '@skeletonlabs/skeleton';
   import ViewDashboard from "./ViewDashboard.svelte";
   import ViewInspector from "./ViewInspector.svelte";
@@ -68,6 +69,7 @@
   });
 
   onMount(() => {
+    setContext('tools', { elementIndex: null, references: [] });
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     loadFile();
   });
