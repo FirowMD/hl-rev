@@ -1,11 +1,15 @@
 # Cheat Engine Scripts
 
-## export_functions.lua
+## Installation
+
+Place scripts in `autorun` folder, e.g. `C:\Program Files\Cheat Engine 7.5\autorun`.
+
+Now, after launching Cheat Engine, you can show scripts under `Memory View` -> `Tools`.
+
+## exportFunctions.lua
 
 This script saves a list of function addresses that are translated from HashLink bytecode to native machine code.
 
-To use the script, you need to specify the output file path by changing the `OUTPUT_FILE_PATH` variable:
+You can use them in `bytesto4t` and Cheat Engine's `Code Filter` (or `Ultimap` for intel CPUs).
 
-```lua
-local OUTPUT_FILE_PATH = "D:/functions.txt"
-```
+![](../docs/images/ce_exportFunctions.png)
