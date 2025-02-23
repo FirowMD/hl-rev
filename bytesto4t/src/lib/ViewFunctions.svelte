@@ -36,6 +36,7 @@
       funcIndex = functionIndexElement.textContent.substring(1);
     }
 
+    console.log("findex: `" + funcIndex + "`");
     await invoke("set_selected_item", {
       appItem: {
         index: funcIndex,
@@ -43,9 +44,19 @@
       }
     });
 
+    console.log("fullName: `" + funcName + functionIndexElement?.textContent + "`");
+    await invoke("add_history_item", {
+      item: {
+        name: funcName + functionIndexElement?.textContent,
+        typ: "function",
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    console.log("fullName: `" + funcName + functionIndexElement?.textContent + "`");
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
-        name: funcName,
+        name: funcName + functionIndexElement?.textContent,
         type: "function"
       }
     });

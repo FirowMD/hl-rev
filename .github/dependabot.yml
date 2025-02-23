@@ -5,15 +5,23 @@
 
 version: 2
 updates:
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "bytesto4t/src-tauri" # Location of package manifests
+  - package-ecosystem: "cargo"
+    directory: "bytesto4t/src-tauri"
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: ":arrow_up: chore(deps): update" # Optional, defaults to "chore(deps): update"
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "bytesto4t" # Location of package manifests
+      prefix: ":arrow_up: chore(deps): update"
+
+  - package-ecosystem: "cargo"
+    directory: "external/hlbc"
     schedule:
       interval: "weekly"
     commit-message:
-      prefix: ":arrow_up: chore(deps): update" # Optional, defaults to "chore(deps): update"
+      prefix: ":arrow_up: chore(deps): update"
+
+  - package-ecosystem: "npm"
+    directory: "bytesto4t"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: ":arrow_up: chore(deps): update"

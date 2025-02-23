@@ -19,7 +19,7 @@
 
   async function onClickButton(e: Event) {
     const target = e.target as HTMLButtonElement;
-    const btnNameElement = target
+    const btnNameElement = target;
     var itemName = "";
 
     if (btnNameElement !== null && btnNameElement.textContent !== null) {
@@ -30,6 +30,15 @@
       appItem: {
         index: splitText(itemName)[1].substring(1),
         typ: "global"
+      }
+    });
+
+    // Add history item
+    await invoke("add_history_item", {
+      item: {
+        name: itemName,
+        typ: "global",
+        timestamp: new Date().toISOString()
       }
     });
 

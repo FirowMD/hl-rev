@@ -49,7 +49,7 @@
           {decompilerTitle}
         </h3>
         {#if functionName !== ""}
-          <h3 class="h3">
+          <h3 class="h3 truncate">
             {functionName}
           </h3>
         {/if}

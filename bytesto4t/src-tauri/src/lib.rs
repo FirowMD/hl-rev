@@ -26,6 +26,19 @@ struct AppItem {
     typ: String
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct HistoryItem {
+    name: String,
+    typ: String,
+    timestamp: String,
+}
+
+#[derive(Debug)]
+struct Reference {
+    element_index: usize,
+    references: Vec<String>
+}
+
 struct AppData {
     target_file_path: String,
     bytecode: Option<Bytecode>,
@@ -33,6 +46,8 @@ struct AppData {
     #[allow(dead_code)]
     selected_item: Option<AppItem>,
     function_addresses: Option<Vec<String>>,
+    history_items: Mutex<Vec<HistoryItem>>,
+    references: Option<Reference>,
 }
 
 struct Storage {
@@ -210,8 +225,10 @@ fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Function index out of bounds".to_string());
             }
             let function = &functions[index];
-            Ok(format!("{}", decompile_function(&bytecode, &function)
-                .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+            decompile_function(&bytecode, &function)
+                .map_err(|e| format!("Decompilation failed: {}", e))
+                .map(|decompiled| format!("{}", decompiled
+                    .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
         }
         "class" => {
             let types = &bytecode.types;
@@ -221,8 +238,10 @@ fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
             let type_obj = &types[index];
             match type_obj {
                 Type::Obj(obj) => {
-                    Ok(format!("{}", decompile_class(&bytecode, obj)
-                        .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+                    decompile_class(&bytecode, obj)
+                        .map_err(|e| format!("Decompilation failed: {}", e))
+                        .map(|decompiled| format!("{}", decompiled
+                            .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
                 }
                 _ => Err("Type is not an object".to_string()),
             }
@@ -312,7 +331,7 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let mut index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+    let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
     let item_type = &app_item.typ;
 
     let info = match item_type.as_str() {
@@ -496,6 +515,40 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     };
 
     Ok(info)
+}
+
+#[tauri::command]
+fn clear_references(app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.references = None;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_all_references(elem_idx: usize, app_data: State<Storage>) -> Result<Vec<String>, String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+
+    let references = bytecode.functions
+        .iter()
+        .enumerate()
+        .flat_map(|(i, f)| {
+            f.find_elem_refs(elem_idx)
+                .map(move |(pos, op)| format!("{}{}@{}###{}###{}", 
+                    f.name(&bytecode), 
+                    f.findex,
+                    i,
+                    pos, 
+                    op.name()))
+        })
+        .collect();
+
+    app_data.references = Some(Reference {
+        element_index: elem_idx,
+        references
+    });
+
+    Ok(app_data.references.as_ref().unwrap().references.clone())
 }
 
 #[tauri::command]
@@ -702,7 +755,7 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
     let default_config = AppConfig {
         file_path: config_file_path.to_string(),
         theme: Some("dark".to_string()),
-        colorscheme: Some("crimson".to_string()),
+        colorscheme: Some("hamlindigo".to_string()),
         recent_files: Some(Vec::new()),
     };
     let default_config_str = serde_json::to_string(&default_config).map_err(|e| e.to_string())?;
@@ -784,6 +837,35 @@ fn get_target_file_path(app_data: State<Storage>) -> Result<String, String> {
     Ok(app_data.target_file_path.clone())
 }
 
+#[tauri::command]
+async fn add_history_item(
+    app_data: State<'_, Storage>,
+    item: HistoryItem,
+) -> Result<(), String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let mut history = app_data.history_items.lock().map_err(|e| e.to_string())?;
+    
+    if history.is_empty() || history[0].name != item.name || history[0].typ != item.typ {
+        history.insert(0, item);
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_history_items(
+    app_data: State<'_, Storage>,
+) -> Result<Vec<HistoryItem>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let history = app_data.history_items.lock().map_err(|e| e.to_string())?;
+    Ok(history.clone())
+}
+
+#[tauri::command]
+fn get_saved_references(app_data: State<Storage>) -> Result<Option<(usize, Vec<String>)>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.references.as_ref().map(|r| (r.element_index, r.references.clone())))
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -803,6 +885,8 @@ pub fn run() {
                 },
                 selected_item: None,
                 function_addresses: None,
+                history_items: Mutex::new(Vec::new()),
+                references: None,
             }),
         })
         .plugin(tauri_plugin_shell::init())
@@ -822,6 +906,8 @@ pub fn run() {
             set_selected_item,
             get_selected_item_foffset,
             get_inspector_info,
+            clear_references,
+            get_all_references,
             get_disassembler_info,
             read_binary_file,
             load_function_addresses_from_file,
@@ -839,6 +925,9 @@ pub fn run() {
             get_config_colorscheme,
             get_config_recent_files,
             get_target_file_path,
+            add_history_item,
+            get_history_items,
+            get_saved_references,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

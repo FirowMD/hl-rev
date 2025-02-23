@@ -1,6 +1,5 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { Accordion, AccordionItem } from "@skeletonlabs/skeleton";
   import { Pane, Splitpanes } from "svelte-splitpanes";
   import PanelFunctions from "../../lib/PanelFunctions.svelte";
   import PanelMain from "../../lib/PanelMain.svelte";
@@ -65,7 +64,7 @@
             <PanelFunctions />
           </div>
         </Pane>
-        <Pane class="h-full">
+        <Pane size={40} class="h-full">
           <div class="variant-filled-surface-900 h-full">
             <PanelStrings />
           </div>

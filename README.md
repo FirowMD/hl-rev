@@ -27,4 +27,6 @@ Simple application that allows you to see internals of `hlboot.dat` file.
 
 ## ByteSto4t
 
-- History View
+- Fix decompiler crashes
+- Tool that generates `csx` files for chosen class
+- Tool that decompiles all functions and saves them in specified folder. 

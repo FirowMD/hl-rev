@@ -38,6 +38,14 @@
       }
     });
 
+    await invoke("add_history_item", {
+      item: {
+        name: itemName,
+        typ: "file",
+        timestamp: new Date().toISOString()
+      }
+    });
+
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
         name: itemName,
