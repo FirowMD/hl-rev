@@ -4,7 +4,7 @@
 
 Place scripts in `autorun` folder, e.g. `C:\Program Files\Cheat Engine 7.5\autorun`.
 
-Now, after launching Cheat Engine, you can show scripts under `Memory View` -> `Tools`.
+Now, after launching Cheat Engine, you can run scripts within `Memory View` under `Tools` menu.
 
 ## exportFunctions.lua
 
