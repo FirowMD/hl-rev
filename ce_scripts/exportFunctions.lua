@@ -26,15 +26,9 @@
     } hl_module;
 ]]--
 
---! Enter path to file where functions will be exported
-local OUTPUT_FILE_PATH = "D:/functions.txt"
-
---
--- Script itself
---
-
 local hashlinkVersion = -1
 
+-- Helper functions from export_functions.lua
 function convertAddressToScanData(address)
     local addr = tonumber(address, 16)
     if not addr then
@@ -106,7 +100,6 @@ function setup_hashlink_version(structure_address)
         current_value = readInteger(addr)
         if current_value == value then
             hashlinkVersion = value
-            print("Hashlink version: " .. hashlinkVersion)
             return true
         end
     end
@@ -115,19 +108,6 @@ function setup_hashlink_version(structure_address)
 end
 
 function getHashlinkNfunctions(structure_address)
-    --[[
-    hl_code* code structure:
-    	int version;    +0
-        int nints;      +4
-        int nfloats;    +8
-        int nstrings;   +12
-        [int nbytes;    +16] // version >= 4
-        int ntypes;     +16 [+20]
-        int nglobals;   +20 [+24]
-        int nnatives;   +24 [+28]
-        int nfunctions; +28 [+32]
-    ]]--
-
     local NFUNCTIONS_OFFSET = 28
     if hashlinkVersion >= 4 then
         NFUNCTIONS_OFFSET = 32
@@ -140,7 +120,6 @@ function getHashlinkNfunctions(structure_address)
 
     return nfunctions
 end
-
 
 function getStructureAddress(hlboot_dat_address)
     local scandata = convertAddressToScanData(hlboot_dat_address)
@@ -190,39 +169,143 @@ function getListOfFunctions(structure_address, nfunctions)
             bytes[i + 7] 
         })
 
-        table.insert(result, function_address)
+        table.insert(result, string.format("%X", function_address))
     end
     
     return result
 end
 
+-- Window implementation
+local ExportFunctionsForm = nil
 
-local hlboot_address, error = findHlbootdatAddress()
-if not hlboot_address then
-    showMessage(error)
-    return
+function createExportFunctionsWindow()
+    -- Create main form
+    ExportFunctionsForm = createForm(false)
+    ExportFunctionsForm.Caption = "Export Hashlink Functions"
+    ExportFunctionsForm.BorderStyle = bsSingle
+    ExportFunctionsForm.Width = 400
+    ExportFunctionsForm.Height = 300
+    ExportFunctionsForm.Position = poScreenCenter
+
+    -- Create output path edit
+    local lblPath = createLabel(ExportFunctionsForm)
+    lblPath.Caption = "Output file path:"
+    lblPath.Left = 10
+    lblPath.Top = 10
+
+    local edtPath = createEdit(ExportFunctionsForm)
+    edtPath.Left = 10
+    edtPath.Top = 30
+    edtPath.Width = 300
+    edtPath.Text = "D:/functions.txt"
+
+    -- Create Browse button
+    local btnBrowse = createButton(ExportFunctionsForm)
+    btnBrowse.Caption = "Browse"
+    btnBrowse.Left = 320
+    btnBrowse.Top = 28
+    btnBrowse.Width = 60
+    btnBrowse.OnClick = function()
+        local saveDialog = createSaveDialog(ExportFunctionsForm)
+        saveDialog.Title = "Save functions list"
+        saveDialog.Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*"
+        saveDialog.DefaultExt = "txt"
+        saveDialog.FileName = edtPath.Text
+        
+        if saveDialog.Execute() then
+            edtPath.Text = saveDialog.FileName
+        end
+        saveDialog.destroy()
+    end
+
+    -- Create memo for log
+    local memoLog = createMemo(ExportFunctionsForm)
+    memoLog.Left = 10
+    memoLog.Top = 60
+    memoLog.Width = 380
+    memoLog.Height = 180
+    memoLog.ScrollBars = ssVertical
+    memoLog.ReadOnly = true
+
+    -- Create export button
+    local btnExport = createButton(ExportFunctionsForm)
+    btnExport.Caption = "Export Functions"
+    btnExport.Left = 10
+    btnExport.Top = 250
+    btnExport.Width = 100
+    btnExport.OnClick = function()
+        memoLog.Clear()
+        
+        local function log(text)
+            memoLog.Lines.Add(text)
+        end
+
+        -- Export process
+        local hlboot_address, error = findHlbootdatAddress()
+        if not hlboot_address then
+            log("Error: " .. error)
+            return
+        end
+        log("HLBoot address: " .. hlboot_address)
+
+        local structure_address = getStructureAddress(hlboot_address)
+        if not structure_address then
+            log("Error: Could not find pointer to 'hlboot.dat' address!")
+            return
+        end
+        log("Structure address: " .. structure_address)
+        log("Hashlink version: " .. hashlinkVersion)
+
+        local nfunctions = getHashlinkNfunctions(structure_address)
+        log("Function number: " .. nfunctions)
+
+        local function_list = getListOfFunctions(structure_address, nfunctions)
+        log("Functions successfully extracted: " .. #function_list)
+
+        -- Save to file
+        local file = io.open(edtPath.Text, "w")
+        if not file then
+            log("Error: Could not open output file!")
+            return
+        end
+
+        for _, function_address in ipairs(function_list) do
+            file:write(function_address .. "\n")
+        end
+        file:close()
+
+        log("Saved to " .. edtPath.Text)
+    end
+
+    ExportFunctionsForm.show()
 end
 
-print("HLBoot address: " .. hlboot_address)
-
-local structure_address = getStructureAddress(hlboot_address)
-if not structure_address then
-    showMessage("Could not find pointer to 'hlboot.dat' address!")
-    return
+function findComponentByName(parent,name)
+	local count = parent.ComponentCount
+	for i = 0,count do if parent.Component[i].Caption == name then return parent.Component[i] end end
+	return nil
 end
 
-print("Structure address: " .. structure_address)
+-- Add menu item to Tools
+function addExportFunctionsMenuItem()
+	local parent = findComponentByName(getMemoryViewForm(),'Tools')
+    -- Find Tools menu
+    for i=0, MainForm.Menu.Items.Count-1 do
+        if MainForm.Menu.Items[i].Caption == "Tools" then
+            parent = MainForm.Menu.Items[i]
+            break
+        end
+    end
 
-local nfunctions = getHashlinkNfunctions(structure_address)
-print("Function number: " .. nfunctions)
+    if parent == nil then return end
 
-local function_list = getListOfFunctions(structure_address, nfunctions)
-print("Functions successfully extracted: " .. #function_list)
-
-local file = io.open(OUTPUT_FILE_PATH, "w")
-for i, function_address in ipairs(function_list) do
-    file:write(string.format("%X\n", function_address))
+    -- Create menu item
+    local exportFunctionsMenuItem = createMenuItem(parent)
+    exportFunctionsMenuItem.Caption = "Export Hashlink Functions"
+    exportFunctionsMenuItem.OnClick = createExportFunctionsWindow
+    exportFunctionsMenuItem.ImageIndex = 47  -- Using save icon (similar to export functionality)
+    parent.add(exportFunctionsMenuItem)
 end
-file:close()
 
-print("Saved to " .. OUTPUT_FILE_PATH)
+-- Initialize
+addExportFunctionsMenuItem()
