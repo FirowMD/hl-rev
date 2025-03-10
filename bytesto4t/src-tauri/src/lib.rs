@@ -1001,6 +1001,26 @@ fn get_ai_decompiled_functions(app_data: State<Storage>) -> Result<Vec<String>, 
         .unwrap_or_default())
 }
 
+#[tauri::command]
+fn get_ai_decompilations(app_data: State<Storage>) -> Result<Vec<AIDecompilation>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.app_config.ai_decompilations
+        .as_ref()
+        .map(|d| d.values().cloned().collect())
+        .unwrap_or_default())
+}
+
+#[tauri::command]
+fn remove_ai_decompilation(function_name: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    
+    if let Some(decompilations) = &mut app_data.app_config.ai_decompilations {
+        decompilations.remove(function_name);
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1076,6 +1096,8 @@ pub fn run() {
             save_ai_decompilation,
             get_ai_decompilation,
             get_ai_decompiled_functions,
+            get_ai_decompilations,
+            remove_ai_decompilation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

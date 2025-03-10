@@ -8,6 +8,7 @@
   import { storeHighlightJs } from '@skeletonlabs/skeleton';
   import { writable } from 'svelte/store';
   import type { AIDecompilation, BytecodeItemSelectedEvent } from './types';
+  import VirtualList from 'svelte-tiny-virtual-list';
 
   storeHighlightJs.set(hljs);
   hljs.registerLanguage('haxe', haxe);
@@ -20,6 +21,9 @@
   let isLoading = $state(false);
   let currentFunction = $state("");
   let showSettings = $state(false);
+  let showReplaced = $state(false);
+  let replacedSearch = $state("");
+  let replacedItems = $state<AIDecompilation[]>([]);
 
   // Create a store for replaced functions
   const replacedFunctions = writable<Set<string>>(new Set());
@@ -151,15 +155,58 @@
     }
   }
 
-  // Load replaced functions on mount
+  async function loadReplacedItems() {
+    try {
+      const items = await invoke("get_ai_decompilations") as AIDecompilation[];
+      replacedItems = items;
+    } catch (error) {
+      console.error("Failed to load replaced items:", error);
+    }
+  }
+
+  async function removeDecompilation(functionName: string) {
+    try {
+      await invoke("remove_ai_decompilation", { functionName });
+      await loadReplacedItems();
+      
+      // Update replaced functions list
+      replacedFunctions.update(set => {
+        set.delete(functionName);
+        return set;
+      });
+
+      // Notify decompiler to refresh if currently showing this function
+      window.dispatchEvent(new CustomEvent('ai-decompilation-removed', {
+        detail: { functionName }
+      }));
+
+      await invoke("save_config");
+    } catch (error) {
+      console.error("Failed to remove decompilation:", error);
+      alert("Failed to remove decompilation");
+    }
+  }
+
+  function formatTimestamp(isoString: string): string {
+    return new Date(isoString).toLocaleString();
+  }
+
+  // Update onMount to load replaced items
   onMount(() => {
+    // Execute async operations but don't return their promise
     loadConfig();
+    loadReplacedItems();
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     
     return () => {
       window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     };
   });
+
+  // Filter replaced items based on search
+  const filteredReplacedItems = $derived(replacedItems.filter(item => 
+    item.function_name.toLowerCase().includes(replacedSearch.toLowerCase())
+  ));
 </script>
 
 <div class="h-full overflow-y-auto">
@@ -230,14 +277,21 @@
       <section class="card p-4 variant-soft-secondary">
         <div class="flex justify-between items-center mb-2">
           <div class="text-sm">Result length: {decompilationResult.length}</div>
-          <button 
-            type="button" 
-            class="btn variant-filled-secondary"
-            on:click={saveDecompilation}
-          >
-            Replace Original
-          </button>
+          <div class="flex gap-2">
+            <button 
+              type="button" 
+              class="btn variant-filled-secondary"
+              on:click={saveDecompilation}
+            >
+              Replace Original
+            </button>
+          </div>
         </div>
+        <textarea
+          class="textarea variant-form-material w-full font-mono text-sm mb-2"
+          rows="20"
+          bind:value={decompilationResult}
+        />
         <CodeBlock 
           language="haxe" 
           code={decompilationResult} 
@@ -245,5 +299,63 @@
         />
       </section>
     {/if}
+
+    <section class="card p-4 variant-soft-secondary space-y-2">
+      <div class="flex justify-between items-center">
+        <h4 class="h4">Replaced Functions</h4>
+        <button 
+          type="button" 
+          class="btn variant-soft-secondary"
+          on:click={() => showReplaced = !showReplaced}
+        >
+          {showReplaced ? 'Hide Replaced' : 'Show Replaced'}
+        </button>
+      </div>
+
+      {#if showReplaced}
+        <div class="space-y-2">
+          <input 
+            type="text" 
+            class="input variant-form-material w-full" 
+            placeholder="Search replaced functions..."
+            bind:value={replacedSearch}
+          />
+
+          <div class="h-48 overflow-y-auto">
+            <VirtualList 
+              width="100%" 
+              height="100%" 
+              itemCount={filteredReplacedItems.length} 
+              itemSize={80}
+              overscanCount={5}
+            >
+              <div slot="item" let:index let:style {style}>
+                <div class="card p-2 variant-glass-primary mb-1">
+                  <div class="flex justify-between items-center">
+                    <div class="flex-1">
+                      <div class="font-semibold truncate">
+                        {filteredReplacedItems[index].function_name}
+                      </div>
+                      <div class="text-xs text-secondary-400">
+                        Model: {filteredReplacedItems[index].model}
+                        <br/>
+                        {formatTimestamp(filteredReplacedItems[index].timestamp)}
+                      </div>
+                    </div>
+                    <button 
+                      type="button" 
+                      class="btn btn-sm variant-filled-error"
+                      on:click={() => removeDecompilation(filteredReplacedItems[index].function_name)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </VirtualList>
+          </div>
+        </div>
+      {/if}
+    </section>
   </div>
 </div> 

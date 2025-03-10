@@ -65,7 +65,23 @@
         decompiledCode = ev.detail.result;
       }
     });
+
+    window.addEventListener("ai-decompilation-removed", async (e: Event) => {
+      const ev = e as CustomEvent<{functionName: string}>;
+      if (ev.detail.functionName === functionName) {
+        console.log("AI decompilation removed, reverting to original for", functionName);
+        await updateDecompiler();
+      }
+    });
+
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+
+    // Return cleanup function directly instead of Promise
+    return () => {
+      window.removeEventListener("ai-decompilation-replaced", bytecodeItemSelectedHandler);
+      window.removeEventListener("ai-decompilation-removed", bytecodeItemSelectedHandler);
+      window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    };
   });
 </script>
 

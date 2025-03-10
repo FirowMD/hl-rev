@@ -48,5 +48,6 @@ declare global {
   interface WindowEventMap {
     'bytecode-item-selected': CustomEvent<BytecodeItemSelectedEvent>;
     'ai-decompilation-replaced': CustomEvent<AIDecompilationReplacedEvent>;
+    'ai-decompilation-removed': CustomEvent<{functionName: string}>;
   }
 } 
