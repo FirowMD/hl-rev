@@ -28,4 +28,5 @@ hlbc-decompiler = { path = "../../external/hlbc/crates/decompiler" }
 tauri-plugin-fs = "2"
 tauri-plugin-log = "2"
 chrono = "0.4.40"
+dirs = "6.0.0"
 

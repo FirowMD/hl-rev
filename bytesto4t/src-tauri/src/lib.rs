@@ -13,6 +13,10 @@ use tauri::Manager;
 use std::io::BufRead;
 use std::collections::HashMap;
 use chrono;
+use std::fs;
+use std::path::PathBuf;
+use dirs;
+
 
 mod structgen;
 
@@ -25,7 +29,6 @@ struct AppConfig {
     openrouter_key: Option<String>,
     ai_decompiler: Option<String>,
     ai_prompt: Option<String>,
-    ai_decompilations: Option<HashMap<String, AIDecompilation>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -59,6 +62,7 @@ struct AppData {
     target_file_path: String,
     bytecode: Option<Bytecode>,
     app_config: AppConfig,
+    ai_decompilations: Option<HashMap<String, AIDecompilation>>,
     #[allow(dead_code)]
     selected_item: Option<AppItem>,
     function_addresses: Option<Vec<String>>,
@@ -776,7 +780,6 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
         openrouter_key: None,
         ai_decompiler: None,
         ai_prompt: None,
-        ai_decompilations: None,
     };
     let default_config_str = serde_json::to_string(&default_config).map_err(|e| e.to_string())?;
     std::fs::write(config_file_path, default_config_str).map_err(|e| e.to_string())?;
@@ -893,7 +896,6 @@ fn generate_imhex_pattern(app_data: State<Storage>) -> Result<String, String> {
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
     let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
 
-    // Only generate patterns for class/type items
     match app_item.typ.as_str() {
         "class" => {
             let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
@@ -955,70 +957,132 @@ fn save_ai_decompilation(
     model: &str,
     app_data: State<Storage>
 ) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    
-    if app_data.app_config.ai_decompilations.is_none() {
-        app_data.app_config.ai_decompilations = Some(HashMap::new());
-    }
+    let decompilation = AIDecompilation {
+        function_name: function_name.to_string(),
+        result: result.to_string(),
+        timestamp: chrono::Local::now().to_rfc3339(),
+        model: model.to_string(),
+    };
 
-    if let Some(decompilations) = &mut app_data.app_config.ai_decompilations {
-        decompilations.insert(
-            function_name.to_string(),
-            AIDecompilation {
-                function_name: function_name.to_string(),
-                result: result.to_string(),
-                timestamp: chrono::Local::now().to_rfc3339(),
-                model: model.to_string(),
-            }
-        );
-    }
+    let dir = get_decompilations_dir()?;
+    let file_name = format!("{}.json", function_name.replace(['/', '\\', ':'], "_"));
+    let file_path = dir.join(file_name);
+    
+    fs::write(
+        file_path,
+        serde_json::to_string_pretty(&decompilation)
+            .map_err(|e| format!("Failed to serialize decompilation: {}", e))?
+    ).map_err(|e| format!("Failed to write decompilation file: {}", e))?;
+
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.ai_decompilations = Some(load_decompilations()?);
 
     Ok(())
 }
 
 #[tauri::command]
 fn get_ai_decompilation(function_name: &str, app_data: State<Storage>) -> Result<Option<AIDecompilation>, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    
-    // Add some debug logging
-    println!("Looking for AI decompilation of: {}", function_name);
-    if let Some(decompilations) = &app_data.app_config.ai_decompilations {
-        if let Some(decompilation) = decompilations.get(function_name) {
-            println!("Found AI decompilation");
-            return Ok(Some(decompilation.clone()));
-        }
+    let dir = get_decompilations_dir()?;
+    let file_name = format!("{}.json", function_name.replace(['/', '\\', ':'], "_"));
+    let file_path = dir.join(file_name);
+
+    if !file_path.exists() {
+        return Ok(None);
     }
-    println!("No AI decompilation found");
-    Ok(None)
+
+    let content = fs::read_to_string(file_path)
+        .map_err(|e| format!("Failed to read decompilation file: {}", e))?;
+    let decompilation: AIDecompilation = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse decompilation file: {}", e))?;
+
+    Ok(Some(decompilation))
 }
 
 #[tauri::command]
-fn get_ai_decompiled_functions(app_data: State<Storage>) -> Result<Vec<String>, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    Ok(app_data.app_config.ai_decompilations
-        .as_ref()
-        .map(|d| d.keys().cloned().collect())
-        .unwrap_or_default())
+fn get_ai_decompilations(_app_data: State<Storage>) -> Result<Vec<AIDecompilation>, String> {
+    let decompilations = load_decompilations()?;
+    Ok(decompilations.into_values().collect())
 }
 
 #[tauri::command]
-fn get_ai_decompilations(app_data: State<Storage>) -> Result<Vec<AIDecompilation>, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    Ok(app_data.app_config.ai_decompilations
-        .as_ref()
-        .map(|d| d.values().cloned().collect())
-        .unwrap_or_default())
+fn get_ai_decompiled_functions(_app_data: State<Storage>) -> Result<Vec<String>, String> {
+    let decompilations = load_decompilations()?;
+    Ok(decompilations.into_keys().collect())
+}
+
+#[tauri::command]
+fn update_replaced_decompilations(app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.ai_decompilations = Some(load_decompilations()?);
+    Ok(())
 }
 
 #[tauri::command]
 fn remove_ai_decompilation(function_name: &str, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let dir = get_decompilations_dir()?;
+    let file_name = format!("{}.json", function_name.replace(['/', '\\', ':'], "_"));
+    let file_path = dir.join(file_name);
     
-    if let Some(decompilations) = &mut app_data.app_config.ai_decompilations {
-        decompilations.remove(function_name);
+    if file_path.exists() {
+        fs::remove_file(file_path)
+            .map_err(|e| format!("Failed to remove decompilation file: {}", e))?;
     }
 
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.ai_decompilations = Some(load_decompilations()?);
+
     Ok(())
+}
+
+#[tauri::command]
+fn remove_all_decompilations(app_data: State<Storage>) -> Result<(), String> {
+    let dir = get_decompilations_dir()?;
+    if dir.exists() {
+        fs::remove_dir_all(&dir)
+            .map_err(|e| format!("Failed to remove decompilations directory: {}", e))?;
+        fs::create_dir_all(&dir)
+            .map_err(|e| format!("Failed to recreate decompilations directory: {}", e))?;
+    }
+
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.ai_decompilations = Some(HashMap::new());
+
+    Ok(())
+}
+
+fn load_decompilations() -> Result<HashMap<String, AIDecompilation>, String> {
+    let mut decompilations = HashMap::new();
+    let dir = get_decompilations_dir()?;
+
+    if !dir.exists() {
+        return Ok(decompilations);
+    }
+
+    for entry in fs::read_dir(dir).map_err(|e| format!("Failed to read decompilations directory: {}", e))? {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
+            let content = fs::read_to_string(entry.path())
+                .map_err(|e| format!("Failed to read decompilation file: {}", e))?;
+            let decompilation: AIDecompilation = serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse decompilation file: {}", e))?;
+            decompilations.insert(decompilation.function_name.clone(), decompilation);
+        }
+    }
+
+    Ok(decompilations)
+}
+
+fn get_decompilations_dir() -> Result<PathBuf, String> {
+    let mut path = dirs::data_dir()
+        .ok_or("Could not determine data directory")?;
+    path.push("bytesto4t_decompilations");
+    
+    if !path.exists() {
+        fs::create_dir_all(&path)
+            .map_err(|e| format!("Failed to create decompilations directory: {}", e))?;
+    }
+    
+    Ok(path)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1039,8 +1103,9 @@ pub fn run() {
                     openrouter_key: None,
                     ai_decompiler: None,
                     ai_prompt: None,
-                    ai_decompilations: None,
                 },
+                ai_decompilations: None,
+                #[allow(dead_code)]
                 selected_item: None,
                 function_addresses: None,
                 history_items: Mutex::new(Vec::new()),
@@ -1097,7 +1162,9 @@ pub fn run() {
             get_ai_decompilation,
             get_ai_decompiled_functions,
             get_ai_decompilations,
+            update_replaced_decompilations,
             remove_ai_decompilation,
+            remove_all_decompilations,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

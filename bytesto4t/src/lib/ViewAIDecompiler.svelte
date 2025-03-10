@@ -9,6 +9,7 @@
   import { writable } from 'svelte/store';
   import type { AIDecompilation, BytecodeItemSelectedEvent } from './types';
   import VirtualList from 'svelte-tiny-virtual-list';
+  import { confirm } from '@tauri-apps/plugin-dialog';
 
   storeHighlightJs.set(hljs);
   hljs.registerLanguage('haxe', haxe);
@@ -25,7 +26,6 @@
   let replacedSearch = $state("");
   let replacedItems = $state<AIDecompilation[]>([]);
 
-  // Create a store for replaced functions
   const replacedFunctions = writable<Set<string>>(new Set());
 
   const models = [
@@ -56,13 +56,10 @@
   async function bytecodeItemSelectedHandler(e: Event) {
     try {
       const ev = e as CustomEvent<{name: string, type: string}>;
-      console.log("Bytecode item selected:", ev.detail);
       
       if (ev.detail.type === "function") {
         currentFunction = ev.detail.name;
         disassemblyCode = await invoke("get_disassembler_info") as string;
-        console.log("Loaded disassembly for function:", currentFunction);
-        console.log("Disassembly length:", disassemblyCode.length);
       }
     } catch (error) {
       console.error("Error fetching disassembled info:", error);
@@ -74,10 +71,6 @@
       alert("Please enter your OpenRouter API key");
       return;
     }
-
-    console.log("Current function:", currentFunction);
-    console.log("Disassembly length:", disassemblyCode.length);
-    console.log("Disassembly sample:", disassemblyCode.substring(0, 200));
 
     isLoading = true;
     try {
@@ -91,29 +84,24 @@
         ],
       };
 
-      console.log("Request body:", JSON.stringify(requestBody, null, 2));
-
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openrouterKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
-          'X-Title': 'BytesTo4T',
+          'X-Title': 'ByteSto4t',
         },
         body: JSON.stringify(requestBody),
       });
 
-      console.log("Response status:", response.status);
       const data = await response.json();
-      console.log("Response data:", data);
 
       if (!data.choices?.[0]?.message?.content) {
         throw new Error("Invalid response format: " + JSON.stringify(data));
       }
 
       decompilationResult = data.choices[0].message.content;
-      console.log("Decompilation result set to:", decompilationResult);
     } catch (error) {
       console.error("Decompilation failed:", error);
       alert("Decompilation failed. Please check your API key and try again.");
@@ -133,13 +121,13 @@
         model: selectedModel
       });
       
-      // Update replaced functions list
       replacedFunctions.update(set => {
         set.add(currentFunction);
         return set;
       });
 
-      // Dispatch event to update decompiler view
+      await loadReplacedItems();
+
       window.dispatchEvent(new CustomEvent('ai-decompilation-replaced', {
         detail: {
           functionName: currentFunction,
@@ -169,13 +157,11 @@
       await invoke("remove_ai_decompilation", { functionName });
       await loadReplacedItems();
       
-      // Update replaced functions list
       replacedFunctions.update(set => {
         set.delete(functionName);
         return set;
       });
 
-      // Notify decompiler to refresh if currently showing this function
       window.dispatchEvent(new CustomEvent('ai-decompilation-removed', {
         detail: { functionName }
       }));
@@ -191,11 +177,18 @@
     return new Date(isoString).toLocaleString();
   }
 
-  // Update onMount to load replaced items
-  onMount(() => {
-    // Execute async operations but don't return their promise
-    loadConfig();
+  $effect(() => {
     loadReplacedItems();
+  });
+
+  $effect(() => {
+    invoke("update_replaced_decompilations")
+      .then(() => loadReplacedItems())
+      .catch(error => console.error("Failed to update decompilations:", error));
+  });
+
+  onMount(() => {
+    loadConfig();
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     
     return () => {
@@ -203,7 +196,6 @@
     };
   });
 
-  // Filter replaced items based on search
   const filteredReplacedItems = $derived(replacedItems.filter(item => 
     item.function_name.toLowerCase().includes(replacedSearch.toLowerCase())
   ));
@@ -217,7 +209,7 @@
         <button 
           type="button" 
           class="btn variant-soft-secondary"
-          on:click={() => showSettings = !showSettings}
+          onclick={() => showSettings = !showSettings}
         >
           {showSettings ? 'Hide Settings' : 'Show Settings'}
         </button>
@@ -230,12 +222,12 @@
             class="input variant-form-material w-full" 
             placeholder="OpenRouter API Key"
             bind:value={openrouterKey}
-            on:change={saveConfig}
+            onchange={saveConfig}
           />
           <select 
             class="select variant-form-material w-full" 
             bind:value={selectedModel}
-            on:change={saveConfig}
+            onchange={saveConfig}
           >
             {#each models as model}
               <option value={model}>{model}</option>
@@ -248,8 +240,8 @@
               placeholder="Enter custom prompt for the AI"
               rows="3"
               bind:value={customPrompt}
-              on:change={saveConfig}
-            />
+              onchange={saveConfig}
+            ></textarea>
           </div>
         </div>
       {/if}
@@ -265,7 +257,7 @@
         <button 
           type="button" 
           class="btn variant-filled-primary" 
-          on:click={decompileCode}
+          onclick={decompileCode}
           disabled={isLoading || !currentFunction}
         >
           {isLoading ? 'Decompiling...' : 'Decompile'}
@@ -281,7 +273,7 @@
             <button 
               type="button" 
               class="btn variant-filled-secondary"
-              on:click={saveDecompilation}
+              onclick={saveDecompilation}
             >
               Replace Original
             </button>
@@ -303,13 +295,31 @@
     <section class="card p-4 variant-soft-secondary space-y-2">
       <div class="flex justify-between items-center">
         <h4 class="h4">Replaced Functions</h4>
-        <button 
-          type="button" 
-          class="btn variant-soft-secondary"
-          on:click={() => showReplaced = !showReplaced}
-        >
-          {showReplaced ? 'Hide Replaced' : 'Show Replaced'}
-        </button>
+        <div class="flex gap-2">
+          <button 
+            type="button" 
+            class="btn variant-soft-secondary"
+            onclick={() => showReplaced = !showReplaced}
+          >
+            {showReplaced ? 'Hide Replaced' : 'Show Replaced'}
+          </button>
+          {#if filteredReplacedItems.length > 0}
+            <button 
+              type="button" 
+              class="btn variant-filled-error"
+              onclick={async () => {
+                const confirmed = await confirm('Are you sure you want to remove all decompilations?');
+                if (confirmed) {
+                  await invoke('remove_all_decompilations');
+                  await loadReplacedItems();
+                  replacedFunctions.set(new Set());
+                }
+              }}
+            >
+              Remove All
+            </button>
+          {/if}
+        </div>
       </div>
 
       {#if showReplaced}
@@ -345,7 +355,7 @@
                     <button 
                       type="button" 
                       class="btn btn-sm variant-filled-error"
-                      on:click={() => removeDecompilation(filteredReplacedItems[index].function_name)}
+                      onclick={() => removeDecompilation(filteredReplacedItems[index].function_name)}
                     >
                       Remove
                     </button>
