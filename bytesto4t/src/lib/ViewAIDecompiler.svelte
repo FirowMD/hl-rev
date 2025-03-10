@@ -10,6 +10,7 @@
   import type { AIDecompilation, BytecodeItemSelectedEvent } from './types';
   import VirtualList from 'svelte-tiny-virtual-list';
   import { confirm } from '@tauri-apps/plugin-dialog';
+  import { getContext } from 'svelte';
 
   storeHighlightJs.set(hljs);
   hljs.registerLanguage('haxe', haxe);
@@ -53,16 +54,17 @@
     await invoke("save_config");
   }
 
-  async function bytecodeItemSelectedHandler(e: Event) {
+  async function checkAndLoadSelectedItem() {
     try {
-      const ev = e as CustomEvent<{name: string, type: string}>;
-      
-      if (ev.detail.type === "function") {
-        currentFunction = ev.detail.name;
+      const item = await invoke("get_selected_item") as { typ: string, index: string } | null;
+      if (item && item.typ === "function") {
+        const index = parseInt(item.index);
+        currentFunction = await invoke("get_function_name_by_index", { index }) as string;
         disassemblyCode = await invoke("get_disassembler_info") as string;
       }
+      console.log("Selected item:", item);
     } catch (error) {
-      console.error("Error fetching disassembled info:", error);
+      console.error("Error loading selected item:", error);
     }
   }
 
@@ -177,23 +179,30 @@
     return new Date(isoString).toLocaleString();
   }
 
-  $effect(() => {
-    loadReplacedItems();
+  // Keep event listener for real-time updates
+  onMount(() => {
+    loadConfig();
+    checkAndLoadSelectedItem(); // Load on mount
+    
+    window.addEventListener("bytecode-item-selected", async (e: Event) => {
+      const ev = e as CustomEvent<BytecodeItemSelectedEvent>;
+      if (ev.detail.type === "function") {
+        currentFunction = ev.detail.name;
+        disassemblyCode = await invoke("get_disassembler_info") as string;
+      }
+    });
   });
 
+  // Add effect to reload when tab is shown
+  $effect(() => {
+    checkAndLoadSelectedItem();
+  });
+
+  // Keep existing effect for decompilations
   $effect(() => {
     invoke("update_replaced_decompilations")
       .then(() => loadReplacedItems())
       .catch(error => console.error("Failed to update decompilations:", error));
-  });
-
-  onMount(() => {
-    loadConfig();
-    window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
-    
-    return () => {
-      window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
-    };
   });
 
   const filteredReplacedItems = $derived(replacedItems.filter(item => 

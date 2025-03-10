@@ -31,7 +31,7 @@ struct AppConfig {
     ai_prompt: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct AppItem {
     index: String,
     typ: String
@@ -1085,6 +1085,26 @@ fn get_decompilations_dir() -> Result<PathBuf, String> {
     Ok(path)
 }
 
+#[tauri::command]
+fn get_selected_item(app_data: State<Storage>) -> Result<Option<AppItem>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.selected_item.clone())
+}
+
+#[tauri::command]
+fn get_function_name_by_index(index: usize, app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+    let functions = &bytecode.functions;
+    
+    if index >= functions.len() {
+        return Err("Function index out of bounds".to_string());
+    }
+
+    Ok(functions[index].name(&bytecode).to_string() + &functions[index].findex.to_string() +
+    "@" + &index.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1165,6 +1185,8 @@ pub fn run() {
             update_replaced_decompilations,
             remove_ai_decompilation,
             remove_all_decompilations,
+            get_selected_item,
+            get_function_name_by_index,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
