@@ -6,6 +6,8 @@
   import haxe from 'highlight.js/lib/languages/haxe';
   import 'highlight.js/styles/github-dark.css';
   import { storeHighlightJs } from '@skeletonlabs/skeleton';
+  import { writable } from 'svelte/store';
+  import type { AIDecompilation, BytecodeItemSelectedEvent } from './types';
 
   storeHighlightJs.set(hljs);
   hljs.registerLanguage('haxe', haxe);
@@ -18,6 +20,9 @@
   let isLoading = $state(false);
   let currentFunction = $state("");
   let showSettings = $state(false);
+
+  // Create a store for replaced functions
+  const replacedFunctions = writable<Set<string>>(new Set());
 
   const models = [
     "deepseek/deepseek-r1:free",
@@ -114,9 +119,43 @@
     }
   }
 
+  async function saveDecompilation() {
+    if (!currentFunction || !decompilationResult) return;
+    
+    try {
+      await invoke("save_ai_decompilation", {
+        functionName: currentFunction,
+        result: decompilationResult,
+        model: selectedModel
+      });
+      
+      // Update replaced functions list
+      replacedFunctions.update(set => {
+        set.add(currentFunction);
+        return set;
+      });
+
+      // Dispatch event to update decompiler view
+      window.dispatchEvent(new CustomEvent('ai-decompilation-replaced', {
+        detail: {
+          functionName: currentFunction,
+          result: decompilationResult
+        }
+      }));
+
+      await invoke("save_config");
+      alert("Successfully replaced original decompilation!");
+    } catch (error) {
+      console.error("Failed to save decompilation:", error);
+      alert("Failed to save decompilation");
+    }
+  }
+
+  // Load replaced functions on mount
   onMount(() => {
     loadConfig();
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    
     return () => {
       window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     };
@@ -189,7 +228,16 @@
 
     {#if decompilationResult}
       <section class="card p-4 variant-soft-secondary">
-        <div class="text-sm mb-2">Result length: {decompilationResult.length}</div>
+        <div class="flex justify-between items-center mb-2">
+          <div class="text-sm">Result length: {decompilationResult.length}</div>
+          <button 
+            type="button" 
+            class="btn variant-filled-secondary"
+            on:click={saveDecompilation}
+          >
+            Replace Original
+          </button>
+        </div>
         <CodeBlock 
           language="haxe" 
           code={decompilationResult} 

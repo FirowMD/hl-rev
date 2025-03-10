@@ -2,12 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import VirtualList from 'svelte-tiny-virtual-list';
-
-  interface HistoryItem {
-    name: string;
-    typ: string;
-    timestamp: string;
-  }
+  import type { HistoryItem } from './types';
 
   let historyItems = $state<HistoryItem[]>([]);
   let searchQuery = $state("");

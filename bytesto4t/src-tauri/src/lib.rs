@@ -11,6 +11,8 @@ use hlbc_decompiler::{decompile_function, decompile_class};
 use tauri::State;
 use tauri::Manager;
 use std::io::BufRead;
+use std::collections::HashMap;
+use chrono;
 
 mod structgen;
 
@@ -23,6 +25,7 @@ struct AppConfig {
     openrouter_key: Option<String>,
     ai_decompiler: Option<String>,
     ai_prompt: Option<String>,
+    ai_decompilations: Option<HashMap<String, AIDecompilation>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -42,6 +45,14 @@ struct HistoryItem {
 struct Reference {
     element_index: usize,
     references: Vec<String>
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct AIDecompilation {
+    function_name: String,
+    result: String,
+    timestamp: String,
+    model: String,
 }
 
 struct AppData {
@@ -765,6 +776,7 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
         openrouter_key: None,
         ai_decompiler: None,
         ai_prompt: None,
+        ai_decompilations: None,
     };
     let default_config_str = serde_json::to_string(&default_config).map_err(|e| e.to_string())?;
     std::fs::write(config_file_path, default_config_str).map_err(|e| e.to_string())?;
@@ -936,6 +948,59 @@ fn get_config_prompt(app_data: State<Storage>) -> Result<String, String> {
     ))
 }
 
+#[tauri::command]
+fn save_ai_decompilation(
+    function_name: &str, 
+    result: &str,
+    model: &str,
+    app_data: State<Storage>
+) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    
+    if app_data.app_config.ai_decompilations.is_none() {
+        app_data.app_config.ai_decompilations = Some(HashMap::new());
+    }
+
+    if let Some(decompilations) = &mut app_data.app_config.ai_decompilations {
+        decompilations.insert(
+            function_name.to_string(),
+            AIDecompilation {
+                function_name: function_name.to_string(),
+                result: result.to_string(),
+                timestamp: chrono::Local::now().to_rfc3339(),
+                model: model.to_string(),
+            }
+        );
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_ai_decompilation(function_name: &str, app_data: State<Storage>) -> Result<Option<AIDecompilation>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    
+    // Add some debug logging
+    println!("Looking for AI decompilation of: {}", function_name);
+    if let Some(decompilations) = &app_data.app_config.ai_decompilations {
+        if let Some(decompilation) = decompilations.get(function_name) {
+            println!("Found AI decompilation");
+            return Ok(Some(decompilation.clone()));
+        }
+    }
+    println!("No AI decompilation found");
+    Ok(None)
+}
+
+#[tauri::command]
+fn get_ai_decompiled_functions(app_data: State<Storage>) -> Result<Vec<String>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.app_config.ai_decompilations
+        .as_ref()
+        .map(|d| d.keys().cloned().collect())
+        .unwrap_or_default())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -954,6 +1019,7 @@ pub fn run() {
                     openrouter_key: None,
                     ai_decompiler: None,
                     ai_prompt: None,
+                    ai_decompilations: None,
                 },
                 selected_item: None,
                 function_addresses: None,
@@ -1007,6 +1073,9 @@ pub fn run() {
             get_config_ai_decompiler,
             set_config_prompt,
             get_config_prompt,
+            save_ai_decompilation,
+            get_ai_decompilation,
+            get_ai_decompiled_functions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

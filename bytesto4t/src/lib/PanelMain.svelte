@@ -10,12 +10,9 @@
   import ViewTools from "./ViewTools.svelte";
   import ViewSettings from "./ViewSettings.svelte";
   import ViewAIDecompiler from "./ViewAIDecompiler.svelte";
+  import type { FileData, BytecodeItemSelectedEvent } from './types';
 
-  let fileData = $state<{
-    buffer: Uint8Array,
-    size: number,
-    name: string
-  } | undefined>();
+  let fileData = $state<FileData | undefined>();
 
   const isLargeFile = $derived((fileData?.size ?? 0) > 1024 * 1024);
   
