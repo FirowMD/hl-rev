@@ -12,6 +12,8 @@ use tauri::State;
 use tauri::Manager;
 use std::io::BufRead;
 
+mod structgen;
+
 #[derive(Serialize, Deserialize)]
 struct AppConfig {
     file_path: String,
@@ -867,6 +869,26 @@ fn get_saved_references(app_data: State<Storage>) -> Result<Option<(usize, Vec<S
     Ok(app_data.references.as_ref().map(|r| (r.element_index, r.references.clone())))
 }
 
+#[tauri::command]
+fn generate_imhex_pattern(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+
+    // Only generate patterns for class/type items
+    match app_item.typ.as_str() {
+        "class" => {
+            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
+            if index >= bytecode.types.len() {
+                return Err("Type index out of bounds".to_string());
+            }
+            
+            Ok(structgen::generate_imhex_pattern(bytecode, index))
+        },
+        _ => Err(format!("Cannot generate ImHex pattern for item type: {}", app_item.typ))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -928,6 +950,7 @@ pub fn run() {
             add_history_item,
             get_history_items,
             get_saved_references,
+            generate_imhex_pattern,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

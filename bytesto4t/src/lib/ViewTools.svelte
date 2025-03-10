@@ -16,6 +16,16 @@
   let recognizedPreview: string = $state("");
   let elementIndex: number | null = $state(null);
   let references: string[] = $state([]);
+  let selectedItem: string | null = $state(null);
+
+  interface SelectedItem {
+    name: string;
+    type: string;
+  }
+
+  interface ImHexPattern {
+    pattern: string;
+  }
 
   async function updateRecognizedPreview() {
     if (!loadedContent) return;
@@ -139,14 +149,21 @@
       });
 
       if (funcPath) {
-        await invoke("load_function_addresses_from_file", { filePath: funcPath });
+        // Read the content and convert it to a string
         const content = await readTextFile(funcPath);
+        const contentStr = typeof content === 'string' ? content : new TextDecoder().decode(content);
+        
+        // Load the addresses into the backend
+        await invoke("load_function_addresses_from_file", { filePath: funcPath });
+        
+        // Update the status display
         addressesStatus = {
           name: funcPath.split(/[/\\]/).pop() || "",
-          lines: content.split('\n').length
+          lines: contentStr.split('\n').length
         };
       }
     } catch (error) {
+      console.error("Full error:", error);
       await message(
         `Failed to load function addresses: ${error}`, 
         { title: "Error", kind: "error" }
@@ -177,14 +194,18 @@
       }
       
       // Store the loaded content for later use
-      loadedContent = await readTextFile(inputPath);
+      const content = await readTextFile(inputPath);
+      loadedContent = typeof content === 'string' ? content : new TextDecoder().decode(content);
+      
       filteredStatus = {
         name: inputPath.split(/[/\\]/).pop() || "",
         lines: loadedContent.split('\n').length
       };
+      
       await updateRecognizedPreview();
       
     } catch (error) {
+      console.error("Full error:", error);
       await message(
         `Failed to load filtered content: ${error}`,
         { title: "Error", kind: "error" }
@@ -358,8 +379,32 @@
     }
   }
 
+  async function updateSelectedItem() {
+    try {
+      const item = await invoke<SelectedItem | null>("get_selected_item");
+      if (item) {
+        selectedItem = item.name;
+      } else {
+        selectedItem = null;
+      }
+    } catch (error) {
+      console.error("Failed to get selected item:", error);
+      selectedItem = null;
+    }
+  }
+
   onMount(() => {
     loadSavedReferences();
+    window.addEventListener("bytecode-item-selected", async (e: Event) => {
+      const ev = e as CustomEvent<{name: string, type: string}>;
+      if (ev.detail.type === "class") {
+        selectedItem = ev.detail.name;
+      } else {
+        selectedItem = null;
+      }
+    });
+    
+    updateSelectedItem();
   });
 </script>
 
@@ -478,6 +523,61 @@
           </VirtualList>
         </div>
       {/if}
+    </section>
+    <section class="card p-4 variant-soft-secondary space-y-2">
+      <div class="flex justify-between items-center">
+        <h4 class="h4">ImHex Pattern Generator</h4>
+      </div>
+      <div class="space-y-2">
+        <div class="flex flex-row space-x-2">
+          <input 
+            type="text" 
+            class="input variant-form-material flex-1" 
+            placeholder="No class/type selected"
+            value={selectedItem ?? ""}
+            disabled
+          />
+          <button 
+            type="button" 
+            class="btn variant-soft-secondary" 
+            disabled={!selectedItem}
+            onclick={async () => {
+              try {
+                const pattern = await invoke<string>("generate_imhex_pattern");
+                if (pattern) {
+                  const result = await save({
+                    defaultPath: "pattern.hexpat",
+                    title: "Save ImHex pattern",
+                    filters: [{
+                      name: "ImHex Pattern",
+                      extensions: ["hexpat"]
+                    },
+                    {
+                      name: "All Files",
+                      extensions: ["*"]
+                    }]
+                  });
+
+                  if (result) {
+                    await writeFile(result, new TextEncoder().encode(pattern));
+                    await message("Pattern saved successfully!", { title: "Success", kind: "info" });
+                  }
+                }
+              } catch (error) {
+                await message(
+                  `Failed to generate pattern: ${error}`,
+                  { title: "Error", kind: "error" }
+                );
+              }
+            }}
+          >
+            Generate Pattern
+          </button>
+        </div>
+        <div class="text-sm text-secondary-400">
+          Select a class/type and click "Generate Pattern" to create an ImHex pattern file.
+        </div>
+      </div>
     </section>
   </div>
 </div>
