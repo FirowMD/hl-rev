@@ -9,7 +9,7 @@
   import ViewDecompiler from "./ViewDecompiler.svelte";
   import ViewTools from "./ViewTools.svelte";
   import ViewSettings from "./ViewSettings.svelte";
-  import ViewHistory from "./ViewHistory.svelte";
+  import ViewAIDecompiler from "./ViewAIDecompiler.svelte";
 
   let fileData = $state<{
     buffer: Uint8Array,
@@ -87,9 +87,7 @@
     <Tab bind:group={tabSet} name="tabInspector" value={1}>Inspector</Tab>
     <Tab bind:group={tabSet} name="tabDisassembler" value={2}>Disassembler</Tab>
     <Tab bind:group={tabSet} name="tabDecompiler" value={3}>Decompiler</Tab>
-    <Tab bind:group={tabSet} name="tabHex" value={4}>
-      History
-    </Tab>
+    <Tab bind:group={tabSet} name="tabAIDecompiler" value={4}>AI Decompiler</Tab>
     <Tab bind:group={tabSet} name="tabTools" value={5}>Tools</Tab>
     <Tab bind:group={tabSet} name="tabSettings" value={6}>Settings</Tab>
     <svelte:fragment slot="panel">
@@ -102,7 +100,7 @@
       {:else if tabSet === 3}
         <ViewDecompiler />
       {:else if tabSet === 4}
-        <ViewHistory />
+        <ViewAIDecompiler />
       {:else if tabSet === 5}
         <ViewTools />
       {:else if tabSet === 6}

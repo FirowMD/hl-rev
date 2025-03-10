@@ -20,6 +20,9 @@ struct AppConfig {
     theme: Option<String>,
     colorscheme: Option<String>,
     recent_files: Option<Vec<String>>,
+    openrouter_key: Option<String>,
+    ai_decompiler: Option<String>,
+    ai_prompt: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -759,6 +762,9 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
         theme: Some("dark".to_string()),
         colorscheme: Some("hamlindigo".to_string()),
         recent_files: Some(Vec::new()),
+        openrouter_key: None,
+        ai_decompiler: None,
+        ai_prompt: None,
     };
     let default_config_str = serde_json::to_string(&default_config).map_err(|e| e.to_string())?;
     std::fs::write(config_file_path, default_config_str).map_err(|e| e.to_string())?;
@@ -889,6 +895,47 @@ fn generate_imhex_pattern(app_data: State<Storage>) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+fn set_config_openrouter_key(key: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.app_config.openrouter_key = Some(key.to_string());
+    Ok(())
+}
+
+#[tauri::command]
+fn get_config_openrouter_key(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.app_config.openrouter_key.clone().unwrap_or_default())
+}
+
+#[tauri::command]
+fn set_config_ai_decompiler(model: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.app_config.ai_decompiler = Some(model.to_string());
+    Ok(())
+}
+
+#[tauri::command]
+fn get_config_ai_decompiler(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.app_config.ai_decompiler.clone().unwrap_or("deepseek/deepseek-r1:free".to_string()))
+}
+
+#[tauri::command]
+fn set_config_prompt(prompt: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    app_data.app_config.ai_prompt = Some(prompt.to_string());
+    Ok(())
+}
+
+#[tauri::command]
+fn get_config_prompt(app_data: State<Storage>) -> Result<String, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    Ok(app_data.app_config.ai_prompt.clone().unwrap_or(
+        "Decompile please following hashlink disassembly. Provide only decompiled code, no other words.".to_string()
+    ))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -904,6 +951,9 @@ pub fn run() {
                     theme: None,
                     colorscheme: None,
                     recent_files: None,
+                    openrouter_key: None,
+                    ai_decompiler: None,
+                    ai_prompt: None,
                 },
                 selected_item: None,
                 function_addresses: None,
@@ -951,6 +1001,12 @@ pub fn run() {
             get_history_items,
             get_saved_references,
             generate_imhex_pattern,
+            set_config_openrouter_key,
+            get_config_openrouter_key,
+            set_config_ai_decompiler,
+            get_config_ai_decompiler,
+            set_config_prompt,
+            get_config_prompt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
