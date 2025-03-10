@@ -26,6 +26,7 @@
   let showReplaced = $state(false);
   let replacedSearch = $state("");
   let replacedItems = $state<AIDecompilation[]>([]);
+  let showEditor = $state(false);
 
   const replacedFunctions = writable<Set<string>>(new Set());
 
@@ -281,6 +282,13 @@
           <div class="flex gap-2">
             <button 
               type="button" 
+              class="btn variant-soft-secondary"
+              onclick={() => showEditor = !showEditor}
+            >
+              {showEditor ? 'Hide Editor' : 'Edit'}
+            </button>
+            <button 
+              type="button" 
               class="btn variant-filled-secondary"
               onclick={saveDecompilation}
             >
@@ -288,11 +296,13 @@
             </button>
           </div>
         </div>
-        <textarea
-          class="textarea variant-form-material w-full font-mono text-sm mb-2"
-          rows="20"
-          bind:value={decompilationResult}
-        />
+        {#if showEditor}
+          <textarea
+            class="textarea variant-form-material w-full font-mono text-sm mb-2"
+            rows="20"
+            bind:value={decompilationResult}
+          />
+        {/if}
         <CodeBlock 
           language="haxe" 
           code={decompilationResult} 
