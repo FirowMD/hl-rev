@@ -533,7 +533,7 @@
           <input 
             type="text" 
             class="input variant-form-material flex-1" 
-            placeholder="No class/type selected"
+            placeholder="No class selected"
             value={selectedItem ?? ""}
             disabled
           />
