@@ -123,7 +123,7 @@
     <div class="h-16 w-16">
       <img class="h-auto max-w-full rounded-lg" src="/assets/logo.png" alt="Logo">
     </div>
-    <h1 class="text-4xl">ByteSto4t v.1.3</h1>
+    <h1 class="text-4xl">ByteSto4t v.1.4</h1>
   </div>
   <div class="browse-field flex space-x-4">
     <input class="input" type="text" placeholder="Enter path to file" bind:value={targetFilePath} on:keydown={onEnterDown} />

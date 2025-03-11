@@ -23,10 +23,21 @@ Simple application that allows you to see internals of `hlboot.dat` file.
   </div>
 </div>
 
-# Planned
+Features:
+- [hlbc](https://github.com/Gui-Yom/hlbc) Disassembler & Decompiler
+- AI Decompiler (requires https://openrouter.ai/ account)
+- Function recognizer - allows you to fill function addresses with function names
+- Reference finder
+- [ImHex](https://github.com/WerWolv/ImHex) Pattern Generator - allows you to build .hexpat for given Class
+- Customizable Appearance. Available themes:
+  - Skeleton
+  - Wintry
+  - Modern
+  - Rocket
+  - Seafoam
+  - Vintage
+  - Sahara
+  - Hamlindigo
+  - Gold Nouveau
 
-## ByteSto4t
-
-- Fix decompiler crashes
-- Tool that generates `csx` files for chosen class
-- Tool that decompiles all functions and saves them in specified folder. 
+Download [here](https://github.com/FirowMD/hl-rev/releases)
