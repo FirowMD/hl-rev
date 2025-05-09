@@ -7,10 +7,11 @@
   ],
   "permissions": [
     "core:default",
-    "shell:allow-open",
+    "opener:default",
     "dialog:default",
     "fs:default",
     "log:default",
+    "shell:default",
     "fs:allow-write-text-file",
     "fs:allow-write-file",
     "fs:allow-read-text-file"

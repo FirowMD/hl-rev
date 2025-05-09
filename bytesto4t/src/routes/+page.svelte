@@ -1,10 +1,9 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { open, message } from "@tauri-apps/plugin-dialog";
-  import { ListBox, ListBoxItem } from "@skeletonlabs/skeleton";
   import { onMount } from "svelte";
 
-  let chosenRecentFile: string = ""; //! test
+  let chosenRecentFile: string = "";
   let targetFilePath: string = "";
   let recentFiles: string[] = [];
 
@@ -61,7 +60,6 @@
     }
   }
 
-
   async function onEnterDown(event: KeyboardEvent) {
     if (event.key === "Enter") {
       await switchOnNextPage();
@@ -86,59 +84,58 @@
     }
   }
 
-  async function getColorscheme() {
-    try {
-      const response = await invoke("get_config_colorscheme") as string;
-      document.body.setAttribute("data-theme", response);
-    } catch (error) {
-      console.error("Error getting colorscheme:", error);
-    }
-  }
-
-  async function getTheme() {
-    try {
-      const response = await invoke("get_config_theme") as string;
-      if (response === "dark") {
-        document.documentElement.classList.add("dark");
-        document.documentElement.classList.remove("light");
-      } else {
-        document.documentElement.classList.add("light");
-        document.documentElement.classList.remove("dark");
-      }
-    } catch (error) {
-      console.error("Error getting theme:", error);
-    }
-  }
-
   onMount(async () => {
     await invoke("init_config", {});
     await getRecentFiles();
-    await getColorscheme();
-    await getTheme();
   });
 </script>
 
-<div class="flex flex-col p-4 space-y-4 h-full">
-  <div class="flex flex-row items-end space-x-4">
-    <div class="h-16 w-16">
-      <img class="h-auto max-w-full rounded-lg" src="/assets/logo.png" alt="Logo">
+<main class="w-full h-full p-4 bg-gradient-to-b from-surface-950 to-surface-950">
+  <div class="flex flex-col gap-2 w-full h-full">
+    <div class="flex flex-row items-end space-x-4">
+      <div class="h-14 w-14">
+        <img class="h-auto max-w-full rounded-lg" src="/assets/logo_v2.png" alt="Logo">
+      </div>
+      <h1
+        class="text-2xl font-bold text-surface-500"
+      >
+        ByteSto4t v2.0
+      </h1>
     </div>
-    <h1 class="text-4xl">ByteSto4t v.1.4</h1>
+    <div class="flex flex-row gap-2 justify-between w-full h-8">
+      <input
+        class="input w-full focus:outline-none"
+        type="text"
+        placeholder="Input"
+        bind:value={targetFilePath}
+        onkeydown={onEnterDown}
+      />
+      <button
+        type="button"
+        class="btn preset-filled-surface-500 w-fit"
+        onclick={onClickBrowseHandler}
+      >
+        Browse
+      </button>
+    </div>
+    <button
+      type="button"
+      class="btn preset-filled-surface-500 w-full"
+      onclick={switchOnNextPage}
+    >
+      Ready!
+    </button>
+    <form class="w-full h-full">
+      <select 
+        class="select w-full h-full focus:outline-none overflow-y-auto" 
+        size="5" 
+        bind:value={chosenRecentFile}
+        onchange={onChangeListBoxItemHandler}
+      >
+        {#each recentFiles as recentFile}
+          <option value={recentFile}>{recentFile}</option>
+        {/each}
+      </select>
+    </form>
   </div>
-  <div class="browse-field flex space-x-4">
-    <input class="input" type="text" placeholder="Enter path to file" bind:value={targetFilePath} on:keydown={onEnterDown} />
-    <button type="button" class="btn variant-soft-primary" on:click={onClickBrowseHandler}>Browse</button>
-  </div>
-  {#if targetFilePath !== ""}
-    <button type="button" class="btn variant-filled-primary" on:click={switchOnNextPage}>Ready!</button>
-  {:else}
-    <button type="button" class="btn variant-filled-primary" disabled>Ready!</button>
-  {/if}
-  <div class="card overflow-y-auto h-full">
-    <ListBox active="variant-soft-primary h-full">
-      {#each recentFiles as file}
-        <ListBoxItem on:change={onChangeListBoxItemHandler} bind:group={chosenRecentFile} name="medium" value={file}>{file}</ListBoxItem>
-      {/each}
-    </ListBox>
-  </div>
-</div>
+</main>

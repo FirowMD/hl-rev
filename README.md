@@ -8,7 +8,7 @@ Repository contains:
 - ce_scripts - [Cheat Engine](https://www.cheatengine.org/) scripts
 
 # ByteSto4t
-Simple application that allows you to see internals of `hlboot.dat` file.
+Application that allows you to see internals of hashlink bytecode files: *.hl, `hlboot.dat`
 
 <div align="center">
   <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1rem;">
@@ -27,17 +27,8 @@ Features:
 - [hlbc](https://github.com/Gui-Yom/hlbc) Disassembler & Decompiler
 - AI Decompiler (requires https://openrouter.ai/ account)
 - Function recognizer - allows you to fill function addresses with function names
-- Reference finder
+- X-References for Functions & Strings
 - [ImHex](https://github.com/WerWolv/ImHex) Pattern Generator - allows you to build .hexpat for given Class
-- Customizable Appearance. Available themes:
-  - Skeleton
-  - Wintry
-  - Modern
-  - Rocket
-  - Seafoam
-  - Vintage
-  - Sahara
-  - Hamlindigo
-  - Gold Nouveau
+- Customizable Appearance
 
 Download [here](https://github.com/FirowMD/hl-rev/releases)

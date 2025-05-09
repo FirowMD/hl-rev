@@ -1,8 +1,8 @@
 {
-  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "bytesto4t",
-  "version": "0.1.4",
-  "identifier": "ru.glatcher.app",
+  "version": "0.2.0",
+  "identifier": "com.bytesto4t.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -15,7 +15,6 @@
         "title": "bytesto4t",
         "width": 800,
         "height": 600
-        
       }
     ],
     "security": {

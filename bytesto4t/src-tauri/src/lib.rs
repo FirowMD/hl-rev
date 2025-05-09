@@ -1,7 +1,11 @@
+mod structgen;
+mod app_config;
+mod ai_decomp;
+mod app_data;
+
 use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
-use serde::{Deserialize, Serialize};
 use hlbc::Bytecode;
 use hlbc::Resolve;
 use hlbc::fmt::EnhancedFmt;
@@ -17,62 +21,9 @@ use std::fs;
 use std::path::PathBuf;
 use dirs;
 
-
-mod structgen;
-
-#[derive(Serialize, Deserialize)]
-struct AppConfig {
-    file_path: String,
-    theme: Option<String>,
-    colorscheme: Option<String>,
-    recent_files: Option<Vec<String>>,
-    openrouter_key: Option<String>,
-    ai_decompiler: Option<String>,
-    ai_prompt: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct AppItem {
-    index: String,
-    typ: String
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct HistoryItem {
-    name: String,
-    typ: String,
-    timestamp: String,
-}
-
-#[derive(Debug)]
-struct Reference {
-    element_index: usize,
-    references: Vec<String>
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct AIDecompilation {
-    function_name: String,
-    result: String,
-    timestamp: String,
-    model: String,
-}
-
-struct AppData {
-    target_file_path: String,
-    bytecode: Option<Bytecode>,
-    app_config: AppConfig,
-    ai_decompilations: Option<HashMap<String, AIDecompilation>>,
-    #[allow(dead_code)]
-    selected_item: Option<AppItem>,
-    function_addresses: Option<Vec<String>>,
-    history_items: Mutex<Vec<HistoryItem>>,
-    references: Option<Reference>,
-}
-
-struct Storage {
-    app_data: Mutex<AppData>,
-}
+use crate::app_config::AppConfig;
+use crate::ai_decomp::AIDecompilation;
+use crate::app_data::{AppData, Storage, AppItem, HistoryItem};
 
 #[tauri::command]
 fn set_target_file_path(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
@@ -245,10 +196,8 @@ fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Function index out of bounds".to_string());
             }
             let function = &functions[index];
-            decompile_function(&bytecode, &function)
-                .map_err(|e| format!("Decompilation failed: {}", e))
-                .map(|decompiled| format!("{}", decompiled
-                    .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+            let decompiled = decompile_function(&bytecode, &function);
+            Ok(format!("{}", decompiled.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
         }
         "class" => {
             let types = &bytecode.types;
@@ -258,10 +207,8 @@ fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
             let type_obj = &types[index];
             match type_obj {
                 Type::Obj(obj) => {
-                    decompile_class(&bytecode, obj)
-                        .map_err(|e| format!("Decompilation failed: {}", e))
-                        .map(|decompiled| format!("{}", decompiled
-                            .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
+                    let decompiled = decompile_class(&bytecode, obj);
+                    Ok(format!("{}", decompiled.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))))
                 }
                 _ => Err("Type is not an object".to_string()),
             }
@@ -314,39 +261,6 @@ fn set_selected_item(app_item: AppItem, app_data: State<Storage>) -> Result<(), 
 }
 
 #[tauri::command]
-fn get_selected_item_foffset(app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    let typ = app_item.typ.as_str();
-    match typ {
-        "function" => {
-            let functions = &bytecode.functions;
-            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
-            let function = &functions[index];
-            Ok(format!("{}", function.foffset))
-        },
-        "native" => {
-            let natives = &bytecode.natives;
-            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
-            let native = &natives[index];
-            Ok(format!("{}", native.foffset))
-        },
-        "class" => {
-            let types = &bytecode.types;
-            let index: usize = app_item.index.parse().map_err(|_| "Invalid index format")?;
-            let type_obj = &types[index];
-            match type_obj {
-                Type::Obj(obj) => Ok(format!("{}", obj.foffset)),
-                Type::Fun(fun) => Ok(format!("{}", fun.foffset)),
-                _ => Err("Type is not an object".to_string()),
-            }
-        },
-        _ => Err(format!("Unsupported item type: {}", typ)),
-    }
-}
-
-#[tauri::command]
 fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
@@ -361,10 +275,9 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Function index out of bounds".to_string());
             }
             let f = &functions[index];
-            let mut info = format!("{}{}\nFile Offset: {:X}", 
+            let mut info = format!("{}{}\n", 
                 f.name.display::<EnhancedFmt>(&bytecode), 
-                f.findex,
-                f.foffset);
+                f.findex);
             
             let findex = f.findex;
             info.push_str("\n\nReferences:");
@@ -393,12 +306,10 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
             }
             let type_obj = &types[index];
             let info = match type_obj {
-                Type::Fun(fun) => format!("{}\nFile Offset: {:X}", 
-                    type_obj.display::<EnhancedFmt>(&bytecode),
-                    fun.foffset),
-                Type::Obj(obj) => format!("{}\nFile Offset: {:X}", 
-                    type_obj.display::<EnhancedFmt>(&bytecode),
-                    obj.foffset),
+                Type::Fun(fun) => format!("{}\n", 
+                    type_obj.display::<EnhancedFmt>(&bytecode)),
+                Type::Obj(obj) => format!("{}\n", 
+                    type_obj.display::<EnhancedFmt>(&bytecode)),
                 _ => format!("{}", type_obj.display::<EnhancedFmt>(&bytecode))
             };
             
@@ -525,9 +436,8 @@ fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
                 return Err("Native index out of bounds".to_string());
             }
             let native = &natives[index];
-            let info = format!("{}\nFile Offset: {:X}", 
-                native.display::<EnhancedFmt>(&bytecode),
-                native.foffset);
+            let info = format!("{}\n", 
+                native.display::<EnhancedFmt>(&bytecode));
             
             info
         }
@@ -542,33 +452,6 @@ fn clear_references(app_data: State<Storage>) -> Result<(), String> {
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     app_data.references = None;
     Ok(())
-}
-
-#[tauri::command]
-fn get_all_references(elem_idx: usize, app_data: State<Storage>) -> Result<Vec<String>, String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-
-    let references = bytecode.functions
-        .iter()
-        .enumerate()
-        .flat_map(|(i, f)| {
-            f.find_elem_refs(elem_idx)
-                .map(move |(pos, op)| format!("{}{}@{}###{}###{}", 
-                    f.name(&bytecode), 
-                    f.findex,
-                    i,
-                    pos, 
-                    op.name()))
-        })
-        .collect();
-
-    app_data.references = Some(Reference {
-        element_index: elem_idx,
-        references
-    });
-
-    Ok(app_data.references.as_ref().unwrap().references.clone())
 }
 
 #[tauri::command]
@@ -750,7 +633,7 @@ fn save_disassembled_code(file_path: &str, function_index: &str, app_data: State
 fn init_config(app_handle: tauri::AppHandle) -> Result<(), String> {
     let config_dir = app_handle.path().config_dir().unwrap();
     let config_path = config_dir.to_str().unwrap();
-    let config_file_path = format!("{}/bytesto4t.json", config_path);
+    let config_file_path = format!("{}/bytesto4t.v2.json", config_path);
 
     if Path::new(&config_file_path).exists() {
         read_config(&config_file_path, &app_handle)?;
@@ -795,7 +678,7 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
 fn save_config(app_handle: tauri::AppHandle) -> Result<(), String> {
     let config_dir = app_handle.path().config_dir().unwrap();
     let config_path = config_dir.to_str().unwrap();
-    let config_file_path = format!("{}/bytesto4t.json", config_path);
+    let config_file_path = format!("{}/bytesto4t.v2.json", config_path);
     let app_data = app_handle.state::<Storage>().inner();
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_config = &app_data.app_config;
@@ -1147,10 +1030,8 @@ pub fn run() {
             get_decompiled_info,
             get_dashboard_info,
             set_selected_item,
-            get_selected_item_foffset,
             get_inspector_info,
             clear_references,
-            get_all_references,
             get_disassembler_info,
             read_binary_file,
             load_function_addresses_from_file,
