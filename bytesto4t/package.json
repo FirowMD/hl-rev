@@ -32,7 +32,7 @@
     "@tauri-apps/cli": "^2.5.0",
     "highlight.js": "^11.11.1",
     "lucide-svelte": "^0.515.0",
-    "paneforge": "^0.0.6",
+    "paneforge": "^1.0.0",
     "shiki": "^3.4.0",
     "svelte": "^5.28.2",
     "svelte-check": "^4.1.7",
