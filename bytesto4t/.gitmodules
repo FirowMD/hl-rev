@@ -1,0 +1,3 @@
+[submodule "external/hlbc"]
+    path = external/hlbc
+    url = https://github.com/FirowMD/hlbc.git
