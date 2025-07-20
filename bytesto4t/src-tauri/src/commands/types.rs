@@ -30,7 +30,7 @@ pub struct NewFieldInput {
 pub struct NewProtoInput {
     pub name: String,
     pub findex: usize,
-    pub pindex: usize,
+    pub pindex: i32,
 }
 
 #[derive(Debug, serde::Deserialize)]

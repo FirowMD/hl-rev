@@ -104,8 +104,6 @@
   async function fetchTypeToEdit(idx: number) {
     try {
       const type = await invoke("get_type_full_info", { index: idx });
-      console.log("Loaded type for editing:", type);
-      
       parseTypeForEditing(type);
       
     } catch (e) {
@@ -835,6 +833,141 @@
                       <button
                         class="btn btn-sm bg-error-500 hover:bg-error-600 text-white rounded-lg px-2 py-1.5"
                         onclick={() => removeObjectField(idx)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              <!-- Object/Struct Protos -->
+              {#if ["obj", "struct"].includes(typeKind)}
+                <div class="space-y-4 mt-6">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-md font-medium text-surface-800 dark:text-surface-200">Prototypes</h3>
+                    <button
+                      class="btn btn-sm bg-primary-500 hover:bg-primary-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium"
+                      onclick={addObjectProto}
+                    >
+                      Add Proto
+                    </button>
+                  </div>
+                  
+                  {#each objectProtos as proto, idx}
+                    <div class="flex items-center gap-3 p-3 bg-surface-50 dark:bg-surface-700 rounded-lg">
+                      <span class="text-sm font-medium text-surface-600 dark:text-surface-400 min-w-[60px]">
+                        Proto {idx}:
+                      </span>
+                      
+                      <!-- Proto Name -->
+                      <div class="flex-1 relative popover-container">
+                        <button
+                          type="button"
+                          class="input w-full text-left flex items-center justify-between
+                            bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600
+                            rounded-lg px-3 py-2 text-sm hover:border-primary-400"
+                          onclick={() => openPopover(`protoName-${idx}`)}
+                        >
+                          <span class={proto.name ? 'text-surface-900 dark:text-surface-100' : 'text-surface-500 dark:text-surface-400'}>
+                            {proto.name ? availableStrings.find(s => s.idx === +proto.name)?.value ?? proto.name : 'Select name...'}
+                          </span>
+                          <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                          </svg>
+                        </button>
+                        
+                        {#if activePopover === `protoName-${idx}`}
+                          <div class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg shadow-lg z-50">
+                            <div class="p-3 border-b border-surface-200 dark:border-surface-700">
+                              <input
+                                class="w-full px-3 py-2 text-sm border border-surface-300 dark:border-surface-600 rounded-md 
+                                  bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                                type="text"
+                                placeholder="Search strings..."
+                                bind:value={popoverSearchQueries[`protoName-${idx}`]}
+                              />
+                            </div>
+                            <div class="max-h-48 overflow-y-auto">
+                              {#each getFilteredStrings(popoverSearchQueries[`protoName-${idx}`] || '') as str}
+                                <button
+                                  class="w-full px-3 py-2 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700 
+                                    text-surface-900 dark:text-surface-100 flex items-center justify-between"
+                                  onclick={() => { 
+                                    objectProtos = objectProtos.map((p, i) => i === idx ? { ...p, name: String(str.idx) } : p);
+                                    closePopover(); 
+                                  }}
+                                >
+                                  <span class="font-mono">{str.value}</span>
+                                  <span class="text-xs text-surface-500">@{str.idx}</span>
+                                </button>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                      </div>
+
+                      <!-- Function Index -->
+                      <div class="flex-1 relative popover-container">
+                        <button
+                          type="button"
+                          class="input w-full text-left flex items-center justify-between
+                            bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600
+                            rounded-lg px-3 py-2 text-sm hover:border-primary-400"
+                          onclick={() => openPopover(`protoFindex-${idx}`)}
+                        >
+                          <span class={proto.findex ? 'text-surface-900 dark:text-surface-100' : 'text-surface-500 dark:text-surface-400'}>
+                            {proto.findex ? availableFunctions.find(f => f.idx === +proto.findex)?.value ?? proto.findex : 'Select function...'}
+                          </span>
+                          <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                          </svg>
+                        </button>
+                        
+                        {#if activePopover === `protoFindex-${idx}`}
+                          <div class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg shadow-lg z-50">
+                            <div class="p-3 border-b border-surface-200 dark:border-surface-700">
+                              <input
+                                class="w-full px-3 py-2 text-sm border border-surface-300 dark:border-surface-600 rounded-md 
+                                  bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                                type="text"
+                                placeholder="Search functions..."
+                                bind:value={popoverSearchQueries[`protoFindex-${idx}`]}
+                              />
+                            </div>
+                            <div class="max-h-48 overflow-y-auto">
+                              {#each getFilteredFunctions(popoverSearchQueries[`protoFindex-${idx}`] || '') as func}
+                                <button
+                                  class="w-full px-3 py-2 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700 
+                                    text-surface-900 dark:text-surface-100 flex items-center justify-between"
+                                  onclick={() => { 
+                                    objectProtos = objectProtos.map((p, i) => i === idx ? { ...p, findex: String(func.idx) } : p);
+                                    closePopover(); 
+                                  }}
+                                >
+                                  <span class="font-mono">{func.value}</span>
+                                  <span class="text-xs text-surface-500">@{func.idx}</span>
+                                </button>
+                              {/each}
+                            </div>
+                          </div>
+                        {/if}
+                      </div>
+
+                      <!-- Proto Index -->
+                      <div class="w-32">
+                        <input
+                          class="input w-full px-3 py-2 text-sm border border-surface-300 dark:border-surface-600 rounded-lg
+                            bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                          type="number"
+                          placeholder="PIndex"
+                          bind:value={proto.pindex}
+                        />
+                      </div>
+                      
+                      <button
+                        class="btn btn-sm bg-error-500 hover:bg-error-600 text-white rounded-lg px-2 py-1.5"
+                        onclick={() => removeObjectProto(idx)}
                       >
                         Remove
                       </button>

@@ -32,7 +32,7 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
     let default_config = AppConfig {
         file_path: config_file_path.to_string(),
         theme: Some("dark".to_string()),
-        colorscheme: Some("hamlindigo".to_string()),
+        colorscheme: Some("bytesto4t".to_string()),
         recent_files: Some(Vec::new()),
         openrouter_key: None,
         ai_decompiler: None,
