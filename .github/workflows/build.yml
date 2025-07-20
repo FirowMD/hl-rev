@@ -5,6 +5,8 @@ on: [push, pull_request]
 jobs:
   build-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout main code
         uses: actions/checkout@v4
