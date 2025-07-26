@@ -3,7 +3,6 @@
   import { onMount } from "svelte";
   import VirtualList from 'svelte-tiny-virtual-list';
   
-  // Define the types locally since they might not be imported correctly
   interface AIDecompilation {
     function_name: string;
     result: string;
@@ -44,7 +43,6 @@
     try {
       console.log("Updating decompiler for function:", functionName);
       
-      // First check for manual edits (marked with "manual" model)
       const manualEdit = await invoke("get_ai_decompilation", { 
         functionName 
       }) as AIDecompilation | null;
@@ -54,20 +52,16 @@
         decompiledCode = manualEdit.result;
         hasManualEdit = true;
         
-        // Get original code for re-decompile functionality
         const originalResponse = await invoke("get_decompiled_info") as string;
         originalCode = originalResponse;
       } else if (manualEdit && manualEdit.model !== "manual") {
-        // This is an AI decompilation
         console.log("Using AI decompilation for", functionName);
         decompiledCode = manualEdit.result;
         hasManualEdit = false;
         
-        // Get original code for re-decompile functionality
         const originalResponse = await invoke("get_decompiled_info") as string;
         originalCode = originalResponse;
       } else {
-        // Use original decompilation
         console.log("Using original decompilation for", functionName);
         const response = await invoke("get_decompiled_info") as string;
         decompiledCode = response;
@@ -92,10 +86,16 @@
         model: "manual"
       });
       
+      const currentEdit = isEditing;
+      
       hasManualEdit = true;
       isEditing = false;
+      
+      if (currentEdit === isEditing) {
+        isEditing = !isEditing;
+        isEditing = false;
+      }
 
-      // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('manual-decompilation-saved', {
         detail: {
           functionName: functionName,
@@ -114,23 +114,19 @@
     if (!functionName) return;
     
     try {
-      // Remove manual edit if it exists
       if (hasManualEdit) {
         await invoke("remove_ai_decompilation", { functionName });
       }
       
-      // Get fresh original decompilation
       const originalResponse = await invoke("get_decompiled_info") as string;
       decompiledCode = originalResponse;
       originalCode = originalResponse;
       hasManualEdit = false;
       isEditing = false;
       
-      // Update optimized arrays
       decompiledCodeOptimized = decompiledCode.split("\n");
       decompiledCodeLineNumber = decompiledCodeOptimized.length;
 
-      // Dispatch event to notify other components
       window.dispatchEvent(new CustomEvent('manual-decompilation-removed', {
         detail: { functionName }
       }));
@@ -144,9 +140,7 @@
 
   function toggleEdit() {
     if (isEditing) {
-      // Cancel editing - revert to last saved state
       if (hasManualEdit) {
-        // If there was a manual edit, restore it
         invoke("get_ai_decompilation", { functionName })
           .then((result: unknown) => {
             const aiDecomp = result as AIDecompilation | null;
@@ -155,22 +149,18 @@
             }
           });
       } else {
-        // No manual edit, restore original
         decompiledCode = originalCode;
       }
       isEditing = false;
     } else {
-      // Enter edit mode
       isEditing = true;
     }
     
-    // Update optimized array
     decompiledCodeOptimized = decompiledCode.split("\n");
     decompiledCodeLineNumber = decompiledCodeOptimized.length;
   }
 
   function handleCodeChange() {
-    // Update optimized array when code changes
     decompiledCodeOptimized = decompiledCode.split("\n");
     decompiledCodeLineNumber = decompiledCodeOptimized.length;
   }
@@ -194,7 +184,6 @@
   onMount(() => {
     updateDecompiler();
     
-    // Listen for AI decompilation events to update state accordingly
     window.addEventListener("ai-decompilation-replaced", handleAIDecompilationReplaced);
     window.addEventListener("ai-decompilation-removed", handleAIDecompilationRemoved);
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
