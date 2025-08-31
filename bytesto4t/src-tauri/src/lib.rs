@@ -119,6 +119,7 @@ pub fn run() {
             commands::config::set_config_theme,
             commands::config::set_config_colorscheme,
             commands::config::add_config_recent_file,
+            commands::config::remove_config_recent_file,
             commands::config::get_config_theme,
             commands::config::get_config_colorscheme,
             commands::config::get_config_recent_files,

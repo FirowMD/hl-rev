@@ -110,6 +110,15 @@ pub fn get_config_recent_files(app_data: State<Storage>) -> Result<Vec<String>, 
 }
 
 #[tauri::command]
+pub fn remove_config_recent_file(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    if let Some(recent_files) = &mut app_data.app_config.recent_files {
+        recent_files.retain(|file| file != file_path);
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_config_openrouter_key(key: &str, app_data: State<Storage>) -> Result<(), String> {
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     app_data.app_config.openrouter_key = Some(key.to_string());

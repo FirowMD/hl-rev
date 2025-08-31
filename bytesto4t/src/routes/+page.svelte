@@ -6,6 +6,10 @@
   let chosenRecentFile: string = "";
   let targetFilePath: string = "";
   let recentFiles: string[] = [];
+  let contextMenuVisible: boolean = false;
+  let contextMenuX: number = 0;
+  let contextMenuY: number = 0;
+  let contextMenuFile: string = "";
 
   async function setTargetFilePath(filePath: string) {
     try {
@@ -84,9 +88,43 @@
     }
   }
 
+  async function removeRecentFile(filePath: string) {
+    try {
+      await invoke("remove_config_recent_file", { filePath: filePath });
+      await invoke("save_config");
+      await getRecentFiles();
+      contextMenuVisible = false;
+    } catch (error) {
+      console.error("Error removing recent file:", error);
+    }
+  }
+
+  function showContextMenu(event: MouseEvent, filePath: string) {
+    event.preventDefault();
+    contextMenuFile = filePath;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    contextMenuVisible = true;
+  }
+
+  function hideContextMenu() {
+    contextMenuVisible = false;
+  }
+
+  function handleGlobalClick(event: MouseEvent) {
+    if (contextMenuVisible && !(event.target as Element)?.closest('.context-menu')) {
+      hideContextMenu();
+    }
+  }
+
   onMount(async () => {
     await invoke("init_config", {});
     await getRecentFiles();
+    document.addEventListener('click', handleGlobalClick);
+    
+    return () => {
+      document.removeEventListener('click', handleGlobalClick);
+    };
   });
 </script>
 
@@ -133,9 +171,28 @@
         onchange={onChangeListBoxItemHandler}
       >
         {#each recentFiles as recentFile}
-          <option value={recentFile}>{recentFile}</option>
+          <option 
+            value={recentFile}
+            oncontextmenu={(e) => showContextMenu(e, recentFile)}
+          >
+            {recentFile}
+          </option>
         {/each}
       </select>
     </form>
   </div>
+  
+  {#if contextMenuVisible}
+    <div 
+      class="context-menu fixed z-50 bg-surface-800 border border-surface-600 rounded-lg shadow-lg py-1 min-w-48"
+      style="left: {contextMenuX}px; top: {contextMenuY}px;"
+    >
+      <button
+        class="w-full text-left px-4 py-2 hover:bg-surface-700 transition-colors text-surface-100"
+        onclick={() => removeRecentFile(contextMenuFile)}
+      >
+        Remove from list
+      </button>
+    </div>
+  {/if}
 </main>
