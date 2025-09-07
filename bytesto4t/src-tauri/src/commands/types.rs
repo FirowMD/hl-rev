@@ -1,6 +1,7 @@
 use tauri::State;
-use hlbc::types::{Type, RefType, RefString, RefGlobal, RefFun, TypeFun, TypeObj, ObjField, ObjProto, EnumConstruct, Native, ConstantDef};
+use hlbc::types::{Type, RefType, RefString, RefGlobal, RefFun, TypeFun, TypeObj, ObjField, ObjProto, EnumConstruct, Native, ConstantDef, FunPtr};
 use hlbc::fmt::EnhancedFmt;
+use hlbc::analysis::find_functions_using_type;
 use std::io::{Write, BufRead};
 use std::collections::HashMap;
 use crate::app_data::Storage;
@@ -761,4 +762,37 @@ pub fn get_float_full_info(index: usize, app_data: State<Storage>) -> Result<f64
     }
     
     Ok(bytecode.floats[index])
+}
+
+#[tauri::command]
+pub fn find_functions_using_type_cmd(type_index: usize, app_data: State<Storage>) -> Result<Vec<String>, String> {
+    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+    
+    if type_index >= bytecode.types.len() {
+        return Err(format!("Type index {} out of bounds", type_index));
+    }
+    
+    let target_type = RefType(type_index);
+    let function_refs = find_functions_using_type(bytecode, target_type);
+    
+    let mut function_names = Vec::new();
+    for func_ref in function_refs {
+        if let Some(func_ptr) = bytecode.safe_get_ref_fun(func_ref) {
+            match func_ptr {
+                FunPtr::Fun(function) => {
+                    let full_name = function.name(bytecode).to_string() + &function.findex.to_string();
+                    if let Some(vec_index) = bytecode.functions.iter().position(|f| f.findex == func_ref) {
+                        function_names.push(format!("{}@{}", full_name, vec_index));
+                    }
+                }
+                FunPtr::Native(native) => {
+                    let full_name = native.name(bytecode).to_string() + &native.findex.to_string();
+                    function_names.push(format!("{}@native_{}", full_name, func_ref.0));
+                }
+            }
+        }
+    }
+    
+    Ok(function_names)
 }

@@ -63,6 +63,7 @@ pub fn run() {
             commands::types::import_type_json,
             commands::types::export_type_json,
             commands::types::generate_imhex_pattern,
+            commands::types::find_functions_using_type_cmd,
             
             commands::types::create_global,
             commands::types::update_global,

@@ -3,17 +3,18 @@
   import { onMount } from "svelte";
   import { typeToEdit, mainPanelTab, typesRefreshKey } from './types';
   import VirtualList from 'svelte-tiny-virtual-list';
+  import ViewReferenceFinder from './Tools/ViewReferenceFinder.svelte';
   
   let typeList: string[] = [];
   let searchQuery: string = "";
   let filteredList: string[] = [];
   
-  // Context menu state
   let showMenu = false;
   let menuX = 0;
   let menuY = 0;
   let selectedTypeIdx: number | null = null;
   let selectedTypeName: string | null = null;
+  let showReferenceFinder = false;
   
   async function fetchTypeList() {
     const response = await invoke("get_type_list") as string[];
@@ -39,7 +40,6 @@
       }
     });
 
-    // Add history item
     await invoke("add_history_item", {
       item: {
         name: itemName,
@@ -63,7 +63,6 @@
     showMenu = true;
     menuX = e.clientX;
     menuY = e.clientY;
-    // Parse name and index out for action
     const itemName = filteredList[idx];
     selectedTypeName = itemName;
     selectedTypeIdx = parseInt(itemName.split('@')[1]);
@@ -86,13 +85,24 @@
     showMenu = false;
   }
 
-  async function deleteTypeMenu(e) {
+  function findReferencesMenu(e) {
+    console.log("Selected: ", selectedTypeIdx, selectedTypeName);
     e?.stopPropagation();
-    // TODO: Implement delete logic
+    if (selectedTypeIdx !== null) {
+      showReferenceFinder = true;
+    }
     showMenu = false;
   }
 
-  // Dismiss menu on global click/scroll/resize
+  async function deleteTypeMenu(e) {
+    e?.stopPropagation();
+    showMenu = false;
+  }
+
+  function closeReferenceFinder() {
+    showReferenceFinder = false;
+  }
+
   if (typeof window !== 'undefined') {
     window.addEventListener('click', () => showMenu = false);
     window.addEventListener('scroll', () => showMenu = false, true);
@@ -103,7 +113,6 @@
     fetchTypeList();
   });
   
-  // Refresh type list on global signal
   $: if ($typesRefreshKey !== undefined) {
     fetchTypeList();
   }
@@ -176,6 +185,13 @@
               onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') editTypeMenu(); }}>
         Edit
       </button>
+      <button class="block w-full text-left p-1 hover:bg-primary-400/30 rounded"
+              role="menuitem"
+              tabindex="0"
+              onclick={findReferencesMenu}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') findReferencesMenu(); }}>
+        Find function references
+      </button>
       <button class="block w-full text-left p-1 hover:bg-error-400/30 text-error-400 rounded"
               role="menuitem"
               tabindex="0"
@@ -184,5 +200,13 @@
         Delete
       </button>
     </div>
+  {/if}
+  
+  {#if showReferenceFinder && selectedTypeIdx !== null && selectedTypeName !== null}
+    <ViewReferenceFinder 
+      typeName={selectedTypeName}
+      typeIndex={selectedTypeIdx}
+      onClose={closeReferenceFinder}
+    />
   {/if}
 </div>
