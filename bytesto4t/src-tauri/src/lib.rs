@@ -102,6 +102,8 @@ pub fn run() {
             commands::data::get_constant_list,
             commands::data::get_int_list,
             commands::data::get_float_list,
+            commands::data::get_bytes_list,
+            commands::data::get_bytes_full_info,
             
             commands::decompiler::get_decompiled_info,
             commands::decompiler::get_inspector_info,

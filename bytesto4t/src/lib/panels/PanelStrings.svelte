@@ -5,6 +5,7 @@
   import ViewConstants from "../elems/ViewConstants.svelte";
   import ViewInts from "../elems/ViewInts.svelte";
   import ViewFloats from "../elems/ViewFloats.svelte";
+  import ViewBytes from "../elems/ViewBytes.svelte";
   import ViewHistory from "../elems/ViewHistory.svelte";
 
   let activeTab = 'strings';
@@ -15,7 +16,8 @@
     { id: 'globals', label: 'Globals', component: ViewGlobals },
     { id: 'constants', label: 'Constants', component: ViewConstants },
     { id: 'ints', label: 'Ints', component: ViewInts },
-    { id: 'floats', label: 'Floats', component: ViewFloats }
+    { id: 'floats', label: 'Floats', component: ViewFloats },
+    { id: 'bytes', label: 'Bytes', component: ViewBytes }
   ];
 </script>
 

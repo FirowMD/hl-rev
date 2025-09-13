@@ -57,6 +57,7 @@ export const constantToEdit = writable<number | null>(null);
 export const stringToEdit = writable<number | null>(null);
 export const intToEdit = writable<number | null>(null);
 export const floatToEdit = writable<number | null>(null);
+export const byteToEdit = writable<number | null>(null);
 
 export const typesRefreshKey = writable(0);
 export const globalsRefreshKey = writable(0);
@@ -65,6 +66,7 @@ export const constantsRefreshKey = writable(0);
 export const stringsRefreshKey = writable(0);
 export const intsRefreshKey = writable(0);
 export const floatsRefreshKey = writable(0);
+export const bytesRefreshKey = writable(0);
 
 export interface NewTypeData {
   type_kind: string;

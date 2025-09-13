@@ -222,6 +222,56 @@ pub fn get_inspector_info(app_data: State<Storage>) -> Result<String, String> {
             
             info
         }
+        "bytes" => {
+            match &bytecode.bytes {
+                Some((bytes_data, indices)) => {
+                    if index >= indices.len() {
+                        return Err("Bytes index out of bounds".to_string());
+                    }
+                    
+                    let start_pos = indices[index];
+                    let end_pos = indices.get(index + 1).copied().unwrap_or(bytes_data.len());
+                    let byte_slice = &bytes_data[start_pos..end_pos];
+                    
+                    let mut info = format!("Bytes@{}: {} bytes\n\n", index, byte_slice.len());
+                    
+                    for (line_idx, chunk) in byte_slice.chunks(16).enumerate() {
+                        let offset = line_idx * 16;
+                        info.push_str(&format!("{:08x}  ", offset));
+                        
+                        for (i, byte) in chunk.iter().enumerate() {
+                            if i == 8 {
+                                info.push(' ');
+                            }
+                            info.push_str(&format!("{:02x} ", byte));
+                        }
+                        
+                        let remaining = 16 - chunk.len();
+                        for i in 0..remaining {
+                            if chunk.len() + i == 8 {
+                                info.push(' ');
+                            }
+                            info.push_str("   ");
+                        }
+                        
+                        info.push_str(" |");
+                        
+                        for byte in chunk {
+                            if *byte >= 32 && *byte <= 126 {
+                                info.push(*byte as char);
+                            } else {
+                                info.push('.');
+                            }
+                        }
+                        
+                        info.push_str("|\n");
+                    }
+                    
+                    info
+                }
+                None => return Err("No bytes data available".to_string())
+            }
+        }
         _ => return Err(format!("Unsupported item type: {}", item_type)),
     };
 
