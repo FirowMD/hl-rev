@@ -170,7 +170,7 @@
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_type", detail);
+      await invoke("create_type", { input: detail });
       // Trigger refresh for any components that show types
       functionsRefreshKey.update(k => k + 1);
       console.log("Type created successfully");
@@ -201,7 +201,7 @@
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_string", detail);
+      await invoke("create_string", { input: detail });
       stringsRefreshKey.update(k => k + 1);
       console.log("String created successfully");
     } catch (error) {
@@ -231,7 +231,7 @@
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_int", detail);
+      await invoke("create_int", { input: detail });
       intsRefreshKey.update(k => k + 1);
       console.log("Int created successfully");
     } catch (error) {
@@ -261,7 +261,7 @@
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_float", detail);
+      await invoke("create_float", { input: detail });
       floatsRefreshKey.update(k => k + 1);
       console.log("Float created successfully");
     } catch (error) {
@@ -291,7 +291,7 @@ async function handleFloatEdit(event: CustomEvent<any>) {
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_global", detail);
+      await invoke("create_global", { input: detail });
       functionsRefreshKey.update(k => k + 1);
       console.log("Global created successfully");
     } catch (error) {
@@ -321,7 +321,7 @@ async function handleFloatEdit(event: CustomEvent<any>) {
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_native", detail);
+      await invoke("create_native", { input: detail });
       functionsRefreshKey.update(k => k + 1);
       console.log("Native created successfully");
     } catch (error) {
@@ -351,7 +351,7 @@ async function handleFloatEdit(event: CustomEvent<any>) {
     const detail = event.detail;
     if (!detail) return;
     try {
-      await invoke("create_constant", detail);
+      await invoke("create_constant", { input: detail });
       functionsRefreshKey.update(k => k + 1);
       console.log("Constant created successfully");
     } catch (error) {
