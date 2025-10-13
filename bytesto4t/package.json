@@ -31,7 +31,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@tauri-apps/cli": "^2.8.4",
     "highlight.js": "^11.11.1",
-    "lucide-svelte": "^0.544.0",
+    "lucide-svelte": "^0.545.0",
     "paneforge": "^1.0.2",
     "shiki": "^3.12.2",
     "svelte": "^5.38.10",
