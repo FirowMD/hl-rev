@@ -38,6 +38,6 @@
     "svelte-check": "^4.3.1",
     "svelte-tiny-virtual-list": "^3.0.1",
     "typescript": "~5.6.3",
-    "vite": "^6.3.6"
+    "vite": "^7.1.11"
   }
 }
