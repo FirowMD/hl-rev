@@ -6,6 +6,7 @@
   import ViewFunctionRecognizer from './Tools/ViewFunctionRecognizer.svelte';
   import ViewImHexPattern from './Tools/ViewImHexPattern.svelte';
   import ViewImportExportJson from './Tools/ViewImportExportJson.svelte';
+  import ViewMergeBytecode from './Tools/ViewMergeBytecode.svelte';
 
   let references: string[] = $state([]);
   let elementIndex: number | null = $state(null);
@@ -56,6 +57,12 @@
       label: 'Import/Export JSON', 
       component: ViewImportExportJson,
       description: 'Import and export individual functions and classes as JSON'
+    },
+    {
+      id: 'merge-bytecode',
+      label: 'Merge Bytecode',
+      component: ViewMergeBytecode,
+      description: 'Merge external .hl/.dat into current bytecode'
     }
   ];
 

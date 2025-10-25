@@ -44,6 +44,7 @@ pub fn run() {
             commands::bytecode::clear_references,
             commands::bytecode::get_saved_references,
             commands::bytecode::read_binary_file,
+            commands::bytecode::merge_bytecode_with_file,
             
             commands::functions::get_function_list,
             commands::functions::list_functions_with_constructors,

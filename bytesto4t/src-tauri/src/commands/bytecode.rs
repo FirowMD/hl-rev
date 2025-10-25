@@ -98,3 +98,13 @@ pub fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
         Err(e) => Err(e.to_string())
     }
 }
+
+#[tauri::command]
+pub fn merge_bytecode_with_file(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
+    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+    let current = app_data.bytecode.take().ok_or("bytecode not loaded")?;
+    let other = Bytecode::from_file(Path::new(file_path)).map_err(|e| e.to_string())?;
+    let merged = current.merge_with(other).map_err(|e| e.to_string())?;
+    app_data.bytecode = Some(merged);
+    Ok(())
+}
