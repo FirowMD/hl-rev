@@ -137,7 +137,7 @@
       <h1
         class="text-2xl font-bold text-surface-500"
       >
-        ByteSto4t v2.1
+        ByteSto4t v2.2
       </h1>
     </div>
     <div class="flex flex-row gap-2 justify-between w-full h-8">
