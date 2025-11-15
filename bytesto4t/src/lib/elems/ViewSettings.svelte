@@ -27,9 +27,12 @@
   });
 </script>
 
-<div class="h-full preset-outlined-surface-500 bg-surface-900 overflow-y-auto">
-  <div class="p-2 space-y-2">
-    <section class="space-y-2">
+<div class="h-full overflow-y-auto">
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <h5 class="h5">Settings</h5>
+    </header>
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-4 space-y-2">
       <h5 class="h5">Theme</h5>
       <select class="select bg-surface-800 focus:outline-none" size=1 bind:value={selectedTheme} on:change={changeColorscheme}>
         <option value="bytesto4t">Bytesto4t</option>

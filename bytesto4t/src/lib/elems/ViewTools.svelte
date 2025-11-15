@@ -71,38 +71,35 @@
   });
 </script>
 
-<div class="h-full preset-outlined-surface-500 bg-surface-900 flex flex-col">
-  <!-- Tools Tab Navigation -->
-  <div class="flex border-b border-surface-700 bg-surface-800 truncate overflow-x-auto">
-    {#each toolsTabs as tab}
-      <button
-        class="px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap {$activeToolsTab === tab.id ? 'bg-surface-700 border-b-2 border-primary-500 text-primary-300' : 'hover:bg-surface-700/50 text-surface-300'}"
-        onclick={() => activeToolsTab.set(tab.id)}
-        title={tab.description}
-      >
-        {tab.label}
-      </button>
-    {/each}
-  </div>
-
-  <!-- Tools Content Area -->
-  <div class="flex-1 overflow-y-auto">
-    <div class="p-3">
+<div class="h-full overflow-y-auto flex flex-col">
+  <header class="flex items-center justify-between p-3 h-12">
+    <h5 class="h5">Tools</h5>
+  </header>
+  <section class="card preset-outlined-surface-500 bg-surface-900 p-0 h-[calc(100%-3rem)] overflow-hidden flex flex-col">
+    <div class="flex border-b border-surface-700 overflow-x-auto">
+      {#each toolsTabs as tab}
+        <button
+          class="px-4 py-1 { $activeToolsTab === tab.id ? 'bg-surface-800 border-b-2 border-primary-500' : 'hover:bg-surface-800/50'}"
+          onclick={() => activeToolsTab.set(tab.id)}
+          title={tab.description}
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </div>
+    <div class="flex-1 overflow-y-auto p-3">
       {#each toolsTabs as tab}
         {#if $activeToolsTab === tab.id}
           <div class="space-y-2">
-            <!-- Tab description -->
             <div class="text-sm text-surface-400 border-l-2 border-primary-500 pl-3 mb-4">
               {tab.description}
             </div>
-            
-            <!-- Tab component -->
             <svelte:component this={tab.component} />
           </div>
         {/if}
       {/each}
     </div>
-  </div>
+  </section>
 
   <!-- References section (if needed) -->
   {#if references.length > 0}

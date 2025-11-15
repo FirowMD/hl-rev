@@ -205,19 +205,15 @@
   ));
 </script>
 
-<div class="h-full preset-outlined-surface-500 bg-surface-900 overflow-y-auto">
-  <div class="p-2 space-y-2  h-full">
-    <section class="space-y-2">
-      <div class="flex justify-between items-center">
-        <h5 class="h5">AI Decompiler</h5>
-        <button 
-          type="button" 
-          class="btn preset-filled-surface-500"
-          onclick={() => showSettings = !showSettings}
-        >
-          {showSettings ? 'Hide Settings' : 'Show Settings'}
-        </button>
-      </div>
+<div class="h-full overflow-y-auto">
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <h5 class="h5">AI Decompiler</h5>
+      <button type="button" class="btn preset-filled-surface-500" onclick={() => showSettings = !showSettings}>
+        {showSettings ? 'Hide Settings' : 'Show Settings'}
+      </button>
+    </header>
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-4 space-y-2">
 
       {#if showSettings}
         <div class="space-y-2">
@@ -258,34 +254,21 @@
           value={currentFunction}
           disabled
         />
-        <button 
-          type="button" 
-          class="btn preset-filled-surface-500" 
-          onclick={decompileCode}
-          disabled={isLoading || !currentFunction}
-        >
+        <button type="button" class="btn preset-filled-surface-500" onclick={decompileCode} disabled={isLoading || !currentFunction}>
           {isLoading ? 'Decompiling...' : 'Decompile'}
         </button>
       </div>
     </section>
 
     {#if decompilationResult}
-      <section class="p-4 bg-surface-800">
+      <section class="card preset-outlined-surface-500 bg-surface-900 p-4">
         <div class="flex justify-between items-center mb-2">
           <div class="text-sm">Result length: {decompilationResult.length}</div>
           <div class="flex gap-2">
-            <button 
-              type="button" 
-              class="btn preset-filled-surface-500"
-              onclick={() => showEditor = !showEditor}
-            >
+            <button type="button" class="btn preset-filled-surface-500" onclick={() => showEditor = !showEditor}>
               {showEditor ? 'Hide Editor' : 'Edit'}
             </button>
-            <button 
-              type="button" 
-              class="btn preset-filled-surface-500"
-              onclick={saveDecompilation}
-            >
+            <button type="button" class="btn preset-filled-surface-500" onclick={saveDecompilation}>
               Replace Original
             </button>
           </div>
@@ -297,34 +280,26 @@
             bind:value={decompilationResult}
           ></textarea>
         {/if}
-        <pre class="bg-surface-700 p-4 rounded-container-token overflow-x-auto"><code class="language-haxe">{decompilationResult}</code></pre>
+        <pre class="bg-surface-800 p-4 rounded-container-token overflow-x-auto"><code class="language-haxe">{decompilationResult}</code></pre>
       </section>
     {/if}
 
-    <section class="space-y-2">
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-4 space-y-2">
       <div class="flex justify-between items-center">
         <h5 class="h5">Replaced Functions</h5>
         <div class="flex gap-2">
-          <button 
-            type="button" 
-            class="btn preset-filled-surface-500"
-            onclick={() => showReplaced = !showReplaced}
-          >
+          <button type="button" class="btn preset-filled-surface-500" onclick={() => showReplaced = !showReplaced}>
             {showReplaced ? 'Hide Replaced' : 'Show Replaced'}
           </button>
           {#if filteredReplacedItems.length > 0}
-            <button 
-              type="button" 
-              class="btn preset-filled-surface-500"
-              onclick={async () => {
+            <button type="button" class="btn preset-filled-surface-500" onclick={async () => {
                 const confirmed = await confirm('Are you sure you want to remove all decompilations?');
                 if (confirmed) {
                   await invoke('remove_all_decompilations');
                   await loadReplacedItems();
                   replacedFunctions.set(new Set());
                 }
-              }}
-            >
+              }}>
               Remove All
             </button>
           {/if}
@@ -361,11 +336,7 @@
                         {formatTimestamp(filteredReplacedItems[index].timestamp)}
                       </div>
                     </div>
-                    <button 
-                      type="button" 
-                      class="btn btn-sm h-full preset-filled-error-500"
-                      onclick={() => removeDecompilation(filteredReplacedItems[index].function_name)}
-                    >
+                    <button type="button" class="btn btn-sm h-full preset-filled-error-500" onclick={() => removeDecompilation(filteredReplacedItems[index].function_name)}>
                       Remove ✕
                     </button>
                   </div>

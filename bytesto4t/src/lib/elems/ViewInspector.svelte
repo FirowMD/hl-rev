@@ -35,8 +35,13 @@
   });
 </script>
 
-<div class="h-full">
-  <section class="p-4 preset-outlined-surface-500 bg-surface-900 text-left overflow-y-auto w-full h-full">
-    <pre class="h-full">{inspectorContent}</pre>
-  </section>
+<div class="h-full overflow-y-auto">
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <h5 class="h5">Inspector</h5>
+    </header>
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-4">
+      <pre>{inspectorContent}</pre>
+    </section>
+  </div>
 </div>

@@ -14,8 +14,13 @@
   });
 </script>
 
-<div class="h-full">
-  <section class="p-4 preset-outlined-surface-500 bg-surface-900 text-left overflow-y-auto w-full h-fit">
-    <pre class="h-fit">{dashboardInfo}</pre>
-  </section>
+<div class="h-full overflow-y-auto">
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <h5 class="h5">Dashboard</h5>
+    </header>
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-4">
+      <pre>{dashboardInfo}</pre>
+    </section>
+  </div>
 </div>

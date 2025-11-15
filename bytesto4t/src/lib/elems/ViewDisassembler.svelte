@@ -74,31 +74,27 @@
 </script>
 
 <div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 preset-outlined-surface-500 bg-surface-900 h-full">
-    <header class="h-12">
-      <div class="flex flex-row items-start justify-between">
-        <h5 class="h5">
-          {disassembledCode.split('\n')[0]}
-        </h5>
-        {#if functionName !== ""}
-          <button type="button" class="btn preset-outlined-surface-500 bg-surface-800" onclick={onClickSaveDisasmHandler}>
-            Save
-          </button>
-        {/if}
-      </div>
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <h5 class="h5 truncate flex-1" title={disassemblerTitle}>{disassemblerTitle}</h5>
+      {#if functionName !== ""}
+        <button type="button" class="btn preset-filled-surface-500" onclick={onClickSaveDisasmHandler}>
+          Save
+        </button>
+      {/if}
     </header>
-    <section class="p-2 h-[calc(100%-3rem)]">
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-2 h-[calc(100%-3rem)] overflow-hidden">
         {#if disassembledCode.length > 80000}
-          <VirtualList width="100%" height="100%" itemCount={disassembledCodeLineNumber - 1} itemSize={25} overscanCount={200}>
+          <VirtualList width="100%" height="100%" itemCount={disassembledCodeLineNumber} itemSize={25} overscanCount={200}>
             <div slot="item" let:index let:style {style}>
               <div class="w-full text-left truncate">
-                <span>{disassembledCodeOptimized[index + 1]}</span>
+                <span>{disassembledCodeOptimized[index]}</span>
               </div>
             </div>
           </VirtualList>
         {:else}
-          <div class="h-full bg-surface-800 overflow-y-auto p-4">
-            <pre>{disassembledCode.split('\n').slice(1).join('\n')}</pre>
+          <div class="h-full bg-surface-800 overflow-y-auto p-4 rounded-container-token">
+            <pre>{disassembledCode}</pre>
           </div>
         {/if}
     </section>

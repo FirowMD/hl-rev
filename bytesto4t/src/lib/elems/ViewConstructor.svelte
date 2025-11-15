@@ -154,112 +154,82 @@
   }
 </script>
 
-<div class="h-full bg-surface-50 dark:bg-surface-900 overflow-hidden">
-  <div class="h-full flex">
-    
-    <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col">
-
-      <!-- Constructor Content -->
-      <div class="flex-1 overflow-hidden">
-      {#if activeTab === 'functions'}
-        <ViewFunctionConstructor
-          bind:modalMode={functionModalMode}
-          bind:editFunctionIndex={functionEditIndex}
-          on:save={(e) => forwardEvent('functionSave', e.detail)}
-          on:edit={(e) => forwardEvent('functionEdit', e.detail)}
-        />
-      {:else if activeTab === 'types'}
-        <ViewTypeConstructor
-          bind:modalMode={typeModalMode}
-          bind:editTypeIndex={typeEditIndex}
-          on:save={(e) => forwardEvent('typeSave', e.detail)}
-          on:edit={(e) => forwardEvent('typeEdit', e.detail)}
-        />
-      {:else if activeTab === 'globals'}
-        <ViewGlobalConstructor
-          bind:modalMode={globalModalMode}
-          bind:editGlobalIndex={globalEditIndex}
-          on:save={(e) => forwardEvent('globalSave', e.detail)}
-          on:edit={(e) => forwardEvent('globalEdit', e.detail)}
-        />
-      {:else if activeTab === 'natives'}
-        <ViewNativeConstructor
-          bind:modalMode={nativeModalMode}
-          bind:editNativeIndex={nativeEditIndex}
-          on:save={(e) => forwardEvent('nativeSave', e.detail)}
-          on:edit={(e) => forwardEvent('nativeEdit', e.detail)}
-        />
-      {:else if activeTab === 'constants'}
-        <ViewConstantConstructor
-          bind:modalMode={constantModalMode}
-          bind:editConstantIndex={constantEditIndex}
-          on:save={(e) => forwardEvent('constantSave', e.detail)}
-          on:edit={(e) => forwardEvent('constantEdit', e.detail)}
-        />
-      {:else if activeTab === 'strings'}
-        <ViewStringConstructor
-          bind:modalMode={stringModalMode}
-          bind:editStringIndex={stringEditIndex}
-          on:save={(e) => forwardEvent('stringSave', e.detail)}
-          on:edit={(e) => forwardEvent('stringEdit', e.detail)}
-        />
-      {:else if activeTab === 'ints'}
-        <ViewIntConstructor
-          bind:modalMode={intModalMode}
-          bind:editIntIndex={intEditIndex}
-          on:save={(e) => forwardEvent('intSave', e.detail)}
-          on:edit={(e) => forwardEvent('intEdit', e.detail)}
-        />
-      {:else if activeTab === 'floats'}
-        <ViewFloatConstructor
-          bind:modalMode={floatModalMode}
-          bind:editFloatIndex={floatEditIndex}
-          on:save={(e) => forwardEvent('floatSave', e.detail)}
-          on:edit={(e) => forwardEvent('floatEdit', e.detail)}
-        />
-      {/if}
+<div class="h-full overflow-y-auto">
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <h5 class="h5">Constructor</h5>
+    </header>
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-0 h-[calc(100%-3rem)] overflow-hidden flex flex-col">
+      <div class="flex border-b border-surface-700 overflow-x-auto">
+        {#each tabs as tab}
+          <button
+            class="px-4 py-1 {activeTab === tab.id ? 'bg-surface-800 border-b-2 border-primary-500' : 'hover:bg-surface-800/50'}"
+            onclick={() => switchTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        {/each}
       </div>
-    </div>
-    
-    <!-- Right Sidebar - Tab Navigation -->
-    <div class="w-80 bg-white dark:bg-surface-800 border-l border-surface-200 dark:border-surface-700 flex flex-col">
-      <!-- Sidebar Header -->
-      <div class="px-6 py-4 border-b border-surface-200 dark:border-surface-700">
-        <h2 class="text-lg font-semibold text-surface-900 dark:text-surface-100">
-          Element Types
-        </h2>
+      <div class="flex-1 overflow-hidden p-2">
+        {#if activeTab === 'functions'}
+          <ViewFunctionConstructor
+            bind:modalMode={functionModalMode}
+            bind:editFunctionIndex={functionEditIndex}
+            on:save={(e) => forwardEvent('functionSave', e.detail)}
+            on:edit={(e) => forwardEvent('functionEdit', e.detail)}
+          />
+        {:else if activeTab === 'types'}
+          <ViewTypeConstructor
+            bind:modalMode={typeModalMode}
+            bind:editTypeIndex={typeEditIndex}
+            on:save={(e) => forwardEvent('typeSave', e.detail)}
+            on:edit={(e) => forwardEvent('typeEdit', e.detail)}
+          />
+        {:else if activeTab === 'globals'}
+          <ViewGlobalConstructor
+            bind:modalMode={globalModalMode}
+            bind:editGlobalIndex={globalEditIndex}
+            on:save={(e) => forwardEvent('globalSave', e.detail)}
+            on:edit={(e) => forwardEvent('globalEdit', e.detail)}
+          />
+        {:else if activeTab === 'natives'}
+          <ViewNativeConstructor
+            bind:modalMode={nativeModalMode}
+            bind:editNativeIndex={nativeEditIndex}
+            on:save={(e) => forwardEvent('nativeSave', e.detail)}
+            on:edit={(e) => forwardEvent('nativeEdit', e.detail)}
+          />
+        {:else if activeTab === 'constants'}
+          <ViewConstantConstructor
+            bind:modalMode={constantModalMode}
+            bind:editConstantIndex={constantEditIndex}
+            on:save={(e) => forwardEvent('constantSave', e.detail)}
+            on:edit={(e) => forwardEvent('constantEdit', e.detail)}
+          />
+        {:else if activeTab === 'strings'}
+          <ViewStringConstructor
+            bind:modalMode={stringModalMode}
+            bind:editStringIndex={stringEditIndex}
+            on:save={(e) => forwardEvent('stringSave', e.detail)}
+            on:edit={(e) => forwardEvent('stringEdit', e.detail)}
+          />
+        {:else if activeTab === 'ints'}
+          <ViewIntConstructor
+            bind:modalMode={intModalMode}
+            bind:editIntIndex={intEditIndex}
+            on:save={(e) => forwardEvent('intSave', e.detail)}
+            on:edit={(e) => forwardEvent('intEdit', e.detail)}
+          />
+        {:else if activeTab === 'floats'}
+          <ViewFloatConstructor
+            bind:modalMode={floatModalMode}
+            bind:editFloatIndex={floatEditIndex}
+            on:save={(e) => forwardEvent('floatSave', e.detail)}
+            on:edit={(e) => forwardEvent('floatEdit', e.detail)}
+          />
+        {/if}
       </div>
-      
-      <!-- Tab Navigation -->
-      <div class="flex-1 overflow-y-auto p-4 sidebar-scroll">
-        <div class="space-y-2">
-          {#each tabs as tab}
-            <button
-              class="w-full flex items-center justify-between px-4 py-3 text-left rounded-lg
-                {activeTab === tab.id 
-                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-l-4 border-primary-600 shadow-sm' 
-                  : 'text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700/50 hover:text-surface-900 dark:hover:text-surface-100'}"
-              onclick={() => switchTab(tab.id)}
-            >
-              <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-sm truncate">{tab.label}</h3>
-              </div>
-              {#if activeTab === tab.id}
-                <div class="flex-shrink-0 w-2 h-2 rounded-full bg-primary-600 dark:bg-primary-400 ml-3"></div>
-              {/if}
-            </button>
-          {/each}
-        </div>
-      </div>
-      
-      <!-- Sidebar Footer -->
-      <div class="px-6 py-4 border-t border-surface-200 dark:border-surface-700">
-        <div class="text-xs text-surface-500 dark:text-surface-400">
-          <p>Right-click items in lists to access edit options</p>
-        </div>
-      </div>
-    </div>
+    </section>
   </div>
 </div>
 
@@ -270,28 +240,5 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.4;
-  }
-  
-  /* Enhance the sidebar scroll area */
-  .sidebar-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-  }
-  
-  .sidebar-scroll::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .sidebar-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .sidebar-scroll::-webkit-scrollbar-thumb {
-    background-color: rgba(156, 163, 175, 0.5);
-    border-radius: 3px;
-  }
-  
-  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(156, 163, 175, 0.7);
   }
 </style>

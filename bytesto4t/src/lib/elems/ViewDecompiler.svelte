@@ -197,56 +197,35 @@
 </script>
 
 <div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 preset-outlined-surface-500 bg-surface-900 h-full">
-    <header class="h-12">
-      <div class="flex flex-row items-start justify-between">
-        <div class="flex items-center gap-2">
-          <h5 class="h5">
-            {decompilerTitle}
-          </h5>
-          {#if functionName !== ""}
-            <h5 class="h5 truncate">
-              {functionName}
-            </h5>
-            {#if hasManualEdit}
-              <span class="badge preset-filled-warning-500 text-xs">Edited</span>
-            {/if}
+  <div class="p-2 space-y-2 h-full">
+    <header class="flex items-center justify-between p-3 h-12">
+      <div class="flex items-center gap-2 min-w-0">
+        <h5 class="h5">{decompilerTitle}</h5>
+        {#if functionName !== ""}
+          <h5 class="h5 truncate">{functionName}</h5>
+          {#if hasManualEdit}
+            <span class="badge preset-filled-warning-500 text-xs">Edited</span>
           {/if}
-        </div>
-        
-        <div class="flex gap-2">
-          <button 
-            type="button" 
-            class="btn preset-outlined-surface-500 bg-surface-800"
-            onclick={toggleEdit}
-          >
-            {isEditing ? 'Cancel' : 'Edit'}
+        {/if}
+      </div>
+      <div class="flex gap-2">
+        <button type="button" class="btn preset-filled-surface-500" onclick={toggleEdit}>
+          {isEditing ? 'Cancel' : 'Edit'}
+        </button>
+        {#if isEditing}
+          <button type="button" class="btn preset-filled-surface-500" onclick={saveManualEdit}>
+            Save
           </button>
-          
-          {#if isEditing}
-            <button 
-              type="button" 
-              class="btn preset-outlined-surface-500 bg-surface-800"
-              onclick={saveManualEdit}
-            >
-              Save
-            </button>
-          {/if}
-          
-          {#if hasManualEdit || isEditing}
-            <button 
-              type="button" 
-              class="btn preset-outlined-surface-500 bg-surface-800"
-              onclick={reDecompile}
-            >
-              Re-decompile
-            </button>
-          {/if}
-        </div>
+        {/if}
+        {#if hasManualEdit || isEditing}
+          <button type="button" class="btn preset-filled-surface-500" onclick={reDecompile}>
+            Re-decompile
+          </button>
+        {/if}
       </div>
     </header>
 
-    <section class="p-2 h-[calc(100%-3rem)]">
+    <section class="card preset-outlined-surface-500 bg-surface-900 p-2 h-[calc(100%-3rem)] overflow-hidden">
       {#if isEditing}
         <textarea
           class="textarea bg-surface-800 w-full h-full font-mono text-sm resize-none focus:outline-none"
@@ -263,7 +242,7 @@
           </div>
         </VirtualList>
       {:else}
-        <div class="h-full bg-surface-800 overflow-y-auto p-4">
+        <div class="h-full bg-surface-800 overflow-y-auto p-4 rounded-container-token">
           <pre>{decompiledCode}</pre>
         </div>
       {/if}
