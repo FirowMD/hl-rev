@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 
 @import '@skeletonlabs/skeleton';
-@import '@skeletonlabs/skeleton/optional/presets';
 
 @import '@skeletonlabs/skeleton/themes/catppuccin';
 @import '@skeletonlabs/skeleton/themes/cerberus';
@@ -28,7 +27,7 @@
 
 @import './bytesto4t-theme';
 
-@source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
+@import '@skeletonlabs/skeleton-svelte';
 
 ::-webkit-scrollbar-track {
     background: var(--color-surface-900);
