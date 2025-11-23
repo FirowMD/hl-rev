@@ -3,6 +3,7 @@ mod app_config;
 mod ai_decomp;
 mod app_data;
 mod commands;
+mod mcp;
 
 use std::sync::Mutex;
 use crate::app_config::AppConfig;
@@ -10,6 +11,7 @@ use crate::app_data::{AppData, Storage};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let is_mcp_mode = std::env::args().any(|a| a == "--mcp");
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
@@ -35,6 +37,12 @@ pub fn run() {
             }),
         })
         .plugin(tauri_plugin_shell::init())
+        .setup(move |app| {
+            if is_mcp_mode {
+                crate::mcp::start_server(app.handle().clone());
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::bytecode::set_target_file_path,
             commands::bytecode::get_dashboard_info,
