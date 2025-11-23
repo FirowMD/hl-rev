@@ -29,11 +29,49 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::read_binary_file::register(&mut server, app_handle.clone()).await?;
     cmd::merge_bytecode_with_file::register(&mut server, app_handle.clone()).await?;
 
+    cmd::get_file_list::register(&mut server, app_handle.clone()).await?;
+    cmd::get_string_list::register(&mut server, app_handle.clone()).await?;
+    cmd::add_string::register(&mut server, app_handle.clone()).await?;
+    cmd::update_string::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_string::register(&mut server, app_handle.clone()).await?;
+    cmd::get_string_full_info::register(&mut server, app_handle.clone()).await?;
+
+    cmd::get_constant_list::register(&mut server, app_handle.clone()).await?;
+    cmd::add_constant::register(&mut server, app_handle.clone()).await?;
+    cmd::update_constant::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_constant::register(&mut server, app_handle.clone()).await?;
+    cmd::get_constant_full_info::register(&mut server, app_handle.clone()).await?;
+
+    cmd::get_int_list::register(&mut server, app_handle.clone()).await?;
+    cmd::add_int::register(&mut server, app_handle.clone()).await?;
+    cmd::update_int::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_int::register(&mut server, app_handle.clone()).await?;
+    cmd::get_int_full_info::register(&mut server, app_handle.clone()).await?;
+
+    cmd::get_float_list::register(&mut server, app_handle.clone()).await?;
+    cmd::add_float::register(&mut server, app_handle.clone()).await?;
+    cmd::update_float::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_float::register(&mut server, app_handle.clone()).await?;
+    cmd::get_float_full_info::register(&mut server, app_handle.clone()).await?;
+
+    cmd::get_bytes_list::register(&mut server, app_handle.clone()).await?;
+    cmd::get_bytes_full_info::register(&mut server, app_handle.clone()).await?;
+
     cmd::get_type_list::register(&mut server, app_handle.clone()).await?;
     cmd::add_type::register(&mut server, app_handle.clone()).await?;
     cmd::update_type::register(&mut server, app_handle.clone()).await?;
     cmd::remove_type::register(&mut server, app_handle.clone()).await?;
     cmd::get_type_full_info::register(&mut server, app_handle.clone()).await?;
+    cmd::get_global_list::register(&mut server, app_handle.clone()).await?;
+    cmd::add_global::register(&mut server, app_handle.clone()).await?;
+    cmd::update_global::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_global::register(&mut server, app_handle.clone()).await?;
+    cmd::get_global_full_info::register(&mut server, app_handle.clone()).await?;
+    cmd::get_native_list::register(&mut server, app_handle.clone()).await?;
+    cmd::add_native::register(&mut server, app_handle.clone()).await?;
+    cmd::update_native::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_native::register(&mut server, app_handle.clone()).await?;
+    cmd::get_native_full_info::register(&mut server, app_handle.clone()).await?;
     cmd::import_type_json::register(&mut server, app_handle.clone()).await?;
     cmd::export_type_json::register(&mut server, app_handle.clone()).await?;
     cmd::generate_imhex_pattern::register(&mut server, app_handle.clone()).await?;
