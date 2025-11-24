@@ -38,8 +38,6 @@ pub mod get_decompiled_info;
 pub mod get_disassembler_info;
 pub mod get_inspector_info;
 pub mod set_target_file_path;
-pub mod set_selected_item;
-pub mod get_selected_item;
 pub mod clear_references;
 pub mod get_saved_references;
 pub mod read_binary_file;

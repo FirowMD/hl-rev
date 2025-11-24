@@ -3,7 +3,7 @@ use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
+use crate::app_data::{Storage, AppItem};
 use hlbc::fmt::EnhancedFmt;
 use hlbc::opcodes::Opcode;
 use hlbc::types::Type;
@@ -15,10 +15,24 @@ pub struct GetInspectorInfoHandler {
 
 #[async_trait]
 impl ToolHandler for GetInspectorInfoHandler {
-    async fn call(&self, _arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
+        let index_str = arguments
+            .get("index")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))?;
+        let typ_str = arguments
+            .get("typ")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| McpError::Validation("Missing 'typ'".to_string()))?;
+
         let state = self.app_handle.state::<Storage>();
+        {
+            let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
+            let app_item = AppItem { index: index_str.to_string(), typ: typ_str.to_string() };
+            app_data.selected_item = Some(app_item);
+        }
         let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let app_item = app_data.selected_item.as_ref().ok_or_else(|| McpError::Validation("No item selected".to_string()))?;
+        let app_item = app_data.selected_item.as_ref().unwrap().clone();
         let bytecode = app_data.bytecode.as_ref().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
         let index: usize = app_item.index.parse().map_err(|_| McpError::Validation("Invalid index format".to_string()))?;
         let item_type = &app_item.typ;
@@ -202,10 +216,11 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     server
         .add_tool(
             "get_inspector_info".to_string(),
-            Some("Get inspector info for selected item".to_string()),
+            Some("Get inspector info for item".to_string()),
             json!({
                 "type": "object",
-                "properties": {},
+                "properties": { "index": { "type": "string" }, "typ": { "type": "string" } },
+                "required": ["index", "typ"],
                 "additionalProperties": false
             }),
             GetInspectorInfoHandler { app_handle: ah },
