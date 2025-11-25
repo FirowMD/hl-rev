@@ -20,12 +20,10 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::get_dashboard_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_decompiled_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_disassembler_info::register(&mut server, app_handle.clone()).await?;
-    cmd::get_inspector_info::register(&mut server, app_handle.clone()).await?;
+    cmd::get_references::register(&mut server, app_handle.clone()).await?;
     cmd::set_target_file_path::register(&mut server, app_handle.clone()).await?;
-    cmd::clear_references::register(&mut server, app_handle.clone()).await?;
-    cmd::get_saved_references::register(&mut server, app_handle.clone()).await?;
+    
     cmd::read_binary_file::register(&mut server, app_handle.clone()).await?;
-    cmd::merge_bytecode_with_file::register(&mut server, app_handle.clone()).await?;
 
     cmd::get_file_list::register(&mut server, app_handle.clone()).await?;
     cmd::get_string_list::register(&mut server, app_handle.clone()).await?;
