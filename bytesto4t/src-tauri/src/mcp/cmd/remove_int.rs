@@ -38,8 +38,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "remove_int".to_string(),
-            Some("Remove an int by index".to_string()),
+            "delete_int".to_string(),
+            Some("Delete an int by index".to_string()),
             json!({
                 "type": "object",
                 "properties": { "index": { "type": "integer" } },

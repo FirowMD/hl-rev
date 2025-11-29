@@ -43,8 +43,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "add_global".to_string(),
-            Some("Add a new global".to_string()),
+            "create_global".to_string(),
+            Some("Create a new global".to_string()),
             json!({
                 "type": "object",
                 "properties": { "global_type": { "type": "integer" } },

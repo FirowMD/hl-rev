@@ -41,8 +41,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "add_constant".to_string(),
-            Some("Add a new constant".to_string()),
+            "create_constant".to_string(),
+            Some("Create a new constant".to_string()),
             json!({
                 "type": "object",
                 "properties": { "global": { "type": "integer" }, "fields": { "type": "array", "items": { "type": "integer" } } },

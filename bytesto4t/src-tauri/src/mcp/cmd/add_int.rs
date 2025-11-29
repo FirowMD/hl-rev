@@ -38,8 +38,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "add_int".to_string(),
-            Some("Add a new int".to_string()),
+            "create_int".to_string(),
+            Some("Create a new int".to_string()),
             json!({
                 "type": "object",
                 "properties": { "value": { "type": "integer" } },

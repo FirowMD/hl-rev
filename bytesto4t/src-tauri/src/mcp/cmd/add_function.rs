@@ -100,8 +100,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "add_function".to_string(),
-            Some("Add a new function (create_function)".to_string()),
+            "create_function".to_string(),
+            Some("Create a new function".to_string()),
             json!({
                 "type": "object",
                 "properties": {

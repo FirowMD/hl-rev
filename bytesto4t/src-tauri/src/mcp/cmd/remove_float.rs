@@ -38,8 +38,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "remove_float".to_string(),
-            Some("Remove a float by index".to_string()),
+            "delete_float".to_string(),
+            Some("Delete a float by index".to_string()),
             json!({
                 "type": "object",
                 "properties": { "index": { "type": "integer" } },

@@ -34,8 +34,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     let ah = app_handle;
     server
         .add_tool(
-            "remove_type".to_string(),
-            Some("Remove a type (delete_type)".to_string()),
+            "delete_type".to_string(),
+            Some("Delete a type".to_string()),
             json!({
                 "type": "object",
                 "properties": {"index": {"type": "integer"}},
