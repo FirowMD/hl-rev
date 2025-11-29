@@ -70,6 +70,7 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::import_type_json::register(&mut server, app_handle.clone()).await?;
     cmd::export_type_json::register(&mut server, app_handle.clone()).await?;
     cmd::generate_imhex_pattern::register(&mut server, app_handle.clone()).await?;
+    cmd::save_bytecode::register(&mut server, app_handle.clone()).await?;
 
     server.start(prism_mcp_rs::transport::stdio::StdioServerTransport::new()).await?;
     Ok(())

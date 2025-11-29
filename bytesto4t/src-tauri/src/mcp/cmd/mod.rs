@@ -55,3 +55,4 @@ pub mod remove_float;
 pub mod get_float_full_info;
 pub mod get_bytes_list;
 pub mod get_bytes_full_info;
+pub mod save_bytecode;
