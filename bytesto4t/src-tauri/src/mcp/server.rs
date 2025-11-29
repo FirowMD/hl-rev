@@ -21,7 +21,6 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::get_decompiled_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_disassembler_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_references::register(&mut server, app_handle.clone()).await?;
-    cmd::set_target_file_path::register(&mut server, app_handle.clone()).await?;
     
     cmd::read_binary_file::register(&mut server, app_handle.clone()).await?;
 

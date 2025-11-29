@@ -37,7 +37,6 @@ pub mod get_dashboard_info;
 pub mod get_decompiled_info;
 pub mod get_disassembler_info;
 pub mod get_references;
-pub mod set_target_file_path;
 pub mod read_binary_file;
 pub mod get_constant_list;
 pub mod add_constant;
