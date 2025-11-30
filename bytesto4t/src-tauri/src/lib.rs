@@ -12,7 +12,8 @@ use crate::app_data::{AppData, Storage};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let is_mcp_mode = std::env::args().any(|a| a == "--mcp");
-    tauri::Builder::default()
+
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -36,13 +37,17 @@ pub fn run() {
                 references: None,
             }),
         })
-        .plugin(tauri_plugin_shell::init())
-        .setup(move |app| {
-            if is_mcp_mode {
-                crate::mcp::start_server(app.handle().clone());
-            }
-            Ok(())
-        })
+        .plugin(tauri_plugin_shell::init());
+
+    if is_mcp_mode {
+        let app = builder
+            .build(tauri::generate_context!())
+            .expect("error while building tauri application");
+        let _ = tauri::async_runtime::block_on(crate::mcp::server::start(app.handle().clone()));
+        return;
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![
             commands::bytecode::set_target_file_path,
             commands::bytecode::get_dashboard_info,
