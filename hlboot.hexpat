@@ -2,6 +2,7 @@
 #pragma pattern_limit 0xFFFFFFFF
 
 import std.io;
+import std.mem;
 
 u8 gHasDebug = 0;
 u8 gVersion = 0;
@@ -10,25 +11,20 @@ u32 gTypeCurrent = 0;
 u32 gFunctionNumber = 0;
 u32 gFunctionCurrent = 0;
 
-fn read_byte(u64 address) {
-    u8 value @ address;
-    return value;
-};
-
 struct HlbcVar {
-    u8 b = read_byte(addressof(this)) [[hidden]];
+    u8 b = std::mem::read_unsigned(addressof(this), 1) [[hidden]];
     u32 value = 0 [[export]];
     if ((b & 0x80) == 0) {
         value = b & 0x7F;
         u8 seq[1];
     } else if ((b & 0x40) == 0) {
-        u8 c = read_byte(addressof(this) + 1);
+        u8 c = std::mem::read_unsigned(addressof(this) + 1, 1);
         value = c | ((b & 0x1F) << 8);
         u8 seq[2];
     } else {
-        u8 c = read_byte(addressof(this) + 1);
-        u8 d = read_byte(addressof(this) + 2);
-        u8 e = read_byte(addressof(this) + 3);
+        u8 c = std::mem::read_unsigned(addressof(this) + 1, 1);
+        u8 d = std::mem::read_unsigned(addressof(this) + 2, 1);
+        u8 e = std::mem::read_unsigned(addressof(this) + 3, 1);
         value = ((b & 0x1F) << 24) | (c << 16) | (d << 8) | e;
         u8 seq[4];
     }
@@ -149,6 +145,7 @@ struct HlbcType {
 
 struct HlbcOpcode {
     u8 op;
+    // std::print("Op: {}, offset: {}\n", op, addressof(this));
     if (op == 0) { // Mov
         HlbcRefType dst;
         HlbcRefType src;
@@ -531,13 +528,13 @@ fn setup_function_debug(u64 addr, u32 nops, ref HlbcFunctionDebug fdebug) {
     u32 cnt;
     u32 offset = 0;
     while (i < nops) {
-        c = read_byte(addr);
+        c = std::mem::read_unsigned(addr, 1);
         addr += 1;
         offset += 1;
         if ((c & 1) != 0)
         {
             c >>= 1;
-            currfile = ((c << 8) | read_byte(addr));
+            currfile = ((c << 8) | std::mem::read_unsigned(addr, 1));
             addr += 1;
             offset += 1;
         } else if ((c & 2) != 0) {
