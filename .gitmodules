@@ -1,0 +1,3 @@
+[submodule "bytesto4t/external/hlbc"]
+  path = bytesto4t/external/hlbc
+  url = https://github.com/FirowMD/hlbc.git

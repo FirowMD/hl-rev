@@ -1,0 +1,51 @@
+name: Build bytesto4t
+
+on: [push, pull_request]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main code
+        uses: actions/checkout@v4
+
+      - name: Checkout hlbc repository
+        uses: actions/checkout@v4
+        with:
+          repository: FirowMD/hlbc
+          path: bytesto4t/external/hlbc
+          ref: master
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+        working-directory: bytesto4t
+
+      - name: Build hlbc
+        run: cargo build --release
+        working-directory: bytesto4t/external/hlbc
+
+      - name: Build Bytesto4t
+        run: bun run tauri build
+        working-directory: bytesto4t
+    
+      - name: Upload build artifact
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            bytesto4t/src-tauri/target/release/bundle/msi/*.msi
+            bytesto4t/src-tauri/target/release/bundle/nsis/*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
