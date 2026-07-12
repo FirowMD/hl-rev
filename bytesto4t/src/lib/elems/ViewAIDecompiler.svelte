@@ -12,7 +12,8 @@
 
   hljs.registerLanguage('haxe', haxe);
 
-  let openrouterKey = $state("");
+  let openrouterKeyInput = $state("");
+  let hasOpenrouterKey = $state(false);
   let selectedModel = $state("deepseek/deepseek-r1:free");
   let customPrompt = $state("");
   let disassemblyCode = "";
@@ -37,7 +38,7 @@
   ];
 
   async function loadConfig() {
-    openrouterKey = await invoke("get_config_openrouter_key");
+    hasOpenrouterKey = await invoke("has_config_openrouter_key") as boolean;
     selectedModel = await invoke("get_config_ai_decompiler");
     const savedPrompt = await invoke("get_config_prompt") as string;
     if (savedPrompt) {
@@ -46,10 +47,22 @@
   }
 
   async function saveConfig() {
-    await invoke("set_config_openrouter_key", { key: openrouterKey });
+    const key = openrouterKeyInput.trim();
+    if (key) {
+      await invoke("set_config_openrouter_key", { key });
+      openrouterKeyInput = "";
+      hasOpenrouterKey = true;
+    }
     await invoke("set_config_ai_decompiler", { model: selectedModel });
     await invoke("set_config_prompt", { prompt: customPrompt });
     await invoke("save_config");
+  }
+
+  async function clearOpenrouterKey() {
+    await invoke("set_config_openrouter_key", { key: "" });
+    await invoke("save_config");
+    openrouterKeyInput = "";
+    hasOpenrouterKey = false;
   }
 
   async function checkAndLoadSelectedItem() {
@@ -67,44 +80,33 @@
   }
 
   async function decompileCode() {
-    if (!openrouterKey) {
+    if (openrouterKeyInput.trim()) {
+      await saveConfig();
+    }
+
+    if (!hasOpenrouterKey) {
       alert("Please enter your OpenRouter API key");
+      return;
+    }
+
+    const confirmed = await confirm(
+      `This will send the selected function disassembly (${disassemblyCode.length.toLocaleString()} characters), your prompt, and the selected model name to OpenRouter. Continue?`,
+      { title: "Send disassembly to OpenRouter?", kind: "warning" }
+    );
+    if (!confirmed) {
       return;
     }
 
     isLoading = true;
     try {
-      const requestBody = {
+      decompilationResult = await invoke("decompile_with_openrouter", {
         model: selectedModel,
-        messages: [
-          {
-            role: 'user',
-            content: `${customPrompt}\n\n${disassemblyCode}`,
-          },
-        ],
-      };
-
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openrouterKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'ByteSto4t',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!data.choices?.[0]?.message?.content) {
-        throw new Error("Invalid response format: " + JSON.stringify(data));
-      }
-
-      decompilationResult = data.choices[0].message.content;
+        prompt: customPrompt,
+        disassembly: disassemblyCode,
+      }) as string;
     } catch (error) {
       console.error("Decompilation failed:", error);
-      alert("Decompilation failed. Please check your API key and try again.");
+      alert(`Decompilation failed: ${error}`);
       decompilationResult = "";
     } finally {
       isLoading = false;
@@ -217,13 +219,20 @@
 
       {#if showSettings}
         <div class="space-y-2">
-          <input 
-            type="password" 
-            class="input w-full focus:outline-none" 
-            placeholder="OpenRouter API Key"
-            bind:value={openrouterKey}
-            onchange={saveConfig}
-          />
+          <div class="flex gap-2">
+            <input
+              type="password"
+              class="input w-full focus:outline-none"
+              placeholder={hasOpenrouterKey ? "OpenRouter API Key saved" : "OpenRouter API Key"}
+              bind:value={openrouterKeyInput}
+              onchange={saveConfig}
+            />
+            {#if hasOpenrouterKey}
+              <button type="button" class="btn preset-filled-surface-500" onclick={clearOpenrouterKey}>
+                Clear Key
+              </button>
+            {/if}
+          </div>
           <select 
             class="select w-full focus:outline-none" 
             bind:value={selectedModel}

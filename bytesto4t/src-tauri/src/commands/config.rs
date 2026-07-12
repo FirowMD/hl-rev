@@ -1,7 +1,45 @@
-use tauri::{State, Manager};
-use std::path::Path;
 use crate::app_config::AppConfig;
 use crate::app_data::Storage;
+use std::path::Path;
+use tauri::{Manager, State};
+
+const OPENROUTER_CREDENTIAL_SERVICE: &str = "com.firowmd.bytesto4t.openrouter";
+const OPENROUTER_CREDENTIAL_USER: &str = "openrouter_api_key";
+
+fn openrouter_key_entry() -> Result<keyring::Entry, String> {
+    keyring::Entry::new(OPENROUTER_CREDENTIAL_SERVICE, OPENROUTER_CREDENTIAL_USER)
+        .map_err(|e| format!("Failed to open secure credential store: {e}"))
+}
+
+pub(crate) fn set_secure_openrouter_key(key: &str) -> Result<(), String> {
+    openrouter_key_entry()?
+        .set_password(key)
+        .map_err(|e| format!("Failed to store OpenRouter API key securely: {e}"))
+}
+
+pub(crate) fn get_secure_openrouter_key() -> Result<Option<String>, String> {
+    match openrouter_key_entry()?.get_password() {
+        Ok(key) => Ok(Some(key)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!(
+            "Failed to read OpenRouter API key from secure storage: {e}"
+        )),
+    }
+}
+
+fn delete_secure_openrouter_key() -> Result<(), String> {
+    match openrouter_key_entry()?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(format!(
+            "Failed to remove OpenRouter API key from secure storage: {e}"
+        )),
+    }
+}
+
+fn write_config_file(config_file_path: &str, app_config: &AppConfig) -> Result<(), String> {
+    let app_config_str = serde_json::to_string(app_config).map_err(|e| e.to_string())?;
+    std::fs::write(config_file_path, app_config_str).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub fn init_config(app_handle: tauri::AppHandle) -> Result<(), String> {
@@ -20,14 +58,27 @@ pub fn init_config(app_handle: tauri::AppHandle) -> Result<(), String> {
 
 fn read_config(config_file_path: &str, app_handle: &tauri::AppHandle) -> Result<(), String> {
     let config_file = std::fs::File::open(config_file_path).map_err(|e| e.to_string())?;
-    let app_config: AppConfig = serde_json::from_reader(config_file).map_err(|e| e.to_string())?;
+    let mut app_config: AppConfig =
+        serde_json::from_reader(config_file).map_err(|e| e.to_string())?;
+
+    if let Some(legacy_key) = app_config.openrouter_key.take() {
+        let legacy_key = legacy_key.trim();
+        if !legacy_key.is_empty() {
+            set_secure_openrouter_key(legacy_key)?;
+        }
+        write_config_file(config_file_path, &app_config)?;
+    }
+
     let app_data = app_handle.state::<Storage>();
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     app_data.app_config = app_config;
     Ok(())
 }
 
-fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) -> Result<(), String> {
+fn create_default_config(
+    config_file_path: &str,
+    app_handle: &tauri::AppHandle,
+) -> Result<(), String> {
     let _ = std::fs::File::create(config_file_path).map_err(|e| e.to_string())?;
     let default_config = AppConfig {
         file_path: config_file_path.to_string(),
@@ -38,8 +89,7 @@ fn create_default_config(config_file_path: &str, app_handle: &tauri::AppHandle) 
         ai_decompiler: None,
         ai_prompt: None,
     };
-    let default_config_str = serde_json::to_string(&default_config).map_err(|e| e.to_string())?;
-    std::fs::write(config_file_path, default_config_str).map_err(|e| e.to_string())?;
+    write_config_file(config_file_path, &default_config)?;
 
     let app_data = app_handle.state::<Storage>().inner();
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
@@ -56,8 +106,7 @@ pub fn save_config(app_handle: tauri::AppHandle) -> Result<(), String> {
     let app_data = app_handle.state::<Storage>().inner();
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     let app_config = &app_data.app_config;
-    let app_config_str = serde_json::to_string(app_config).map_err(|e| e.to_string())?;
-    std::fs::write(config_file_path, app_config_str).map_err(|e| e.to_string())?;
+    write_config_file(&config_file_path, app_config)?;
 
     Ok(())
 }
@@ -79,8 +128,11 @@ pub fn set_config_colorscheme(colorscheme: &str, app_data: State<Storage>) -> Re
 #[tauri::command]
 pub fn add_config_recent_file(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let recent_files = app_data.app_config.recent_files.get_or_insert_with(|| Vec::new());
-    
+    let recent_files = app_data
+        .app_config
+        .recent_files
+        .get_or_insert_with(|| Vec::new());
+
     if !recent_files.contains(&file_path.to_string()) {
         recent_files.push(file_path.to_string());
     }
@@ -98,14 +150,22 @@ pub fn get_config_theme(app_data: State<Storage>) -> Result<String, String> {
 #[tauri::command]
 pub fn get_config_colorscheme(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let colorscheme = app_data.app_config.colorscheme.as_ref().ok_or("colorscheme not set")?;
+    let colorscheme = app_data
+        .app_config
+        .colorscheme
+        .as_ref()
+        .ok_or("colorscheme not set")?;
     Ok(colorscheme.to_string())
 }
 
 #[tauri::command]
 pub fn get_config_recent_files(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let recent_files = app_data.app_config.recent_files.as_ref().ok_or("recent_files not set")?;
+    let recent_files = app_data
+        .app_config
+        .recent_files
+        .as_ref()
+        .ok_or("recent_files not set")?;
     Ok(recent_files.clone())
 }
 
@@ -120,15 +180,21 @@ pub fn remove_config_recent_file(file_path: &str, app_data: State<Storage>) -> R
 
 #[tauri::command]
 pub fn set_config_openrouter_key(key: &str, app_data: State<Storage>) -> Result<(), String> {
+    let key = key.trim();
+    if key.is_empty() {
+        delete_secure_openrouter_key()?;
+    } else {
+        set_secure_openrouter_key(key)?;
+    }
+
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    app_data.app_config.openrouter_key = Some(key.to_string());
+    app_data.app_config.openrouter_key = None;
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_config_openrouter_key(app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    Ok(app_data.app_config.openrouter_key.clone().unwrap_or_default())
+pub fn has_config_openrouter_key() -> Result<bool, String> {
+    Ok(get_secure_openrouter_key()?.is_some())
 }
 
 #[tauri::command]
@@ -141,7 +207,11 @@ pub fn set_config_ai_decompiler(model: &str, app_data: State<Storage>) -> Result
 #[tauri::command]
 pub fn get_config_ai_decompiler(app_data: State<Storage>) -> Result<String, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    Ok(app_data.app_config.ai_decompiler.clone().unwrap_or("deepseek/deepseek-r1:free".to_string()))
+    Ok(app_data
+        .app_config
+        .ai_decompiler
+        .clone()
+        .unwrap_or("deepseek/deepseek-r1:free".to_string()))
 }
 
 #[tauri::command]

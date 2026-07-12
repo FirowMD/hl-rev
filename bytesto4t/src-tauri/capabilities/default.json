@@ -7,12 +7,10 @@
   ],
   "permissions": [
     "core:default",
-    "opener:default",
-    "dialog:default",
-    "fs:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-message",
     "log:default",
-    "shell:default",
-    "fs:allow-write-text-file",
     "fs:allow-write-file",
     "fs:allow-read-text-file"
   ]

@@ -1,13 +1,13 @@
-mod structgen;
-mod app_config;
 mod ai_decomp;
+mod app_config;
 mod app_data;
 mod commands;
 mod mcp;
+mod structgen;
 
-use std::sync::Mutex;
 use crate::app_config::AppConfig;
 use crate::app_data::{AppData, Storage};
+use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -36,8 +36,7 @@ pub fn run() {
                 history_items: Mutex::new(Vec::new()),
                 references: None,
             }),
-        })
-        .plugin(tauri_plugin_shell::init());
+        });
 
     if is_mcp_mode {
         let app = builder
@@ -57,7 +56,6 @@ pub fn run() {
             commands::bytecode::clear_references,
             commands::bytecode::get_saved_references,
             commands::bytecode::merge_bytecode_with_file,
-            
             commands::functions::get_function_list,
             commands::functions::list_functions_with_constructors,
             commands::functions::create_function,
@@ -67,7 +65,6 @@ pub fn run() {
             commands::functions::get_function_name_by_index,
             commands::functions::load_function_addresses_from_file,
             commands::functions::get_function_addresses,
-            
             commands::types::get_type_list,
             commands::types::create_type,
             commands::types::update_type,
@@ -77,37 +74,30 @@ pub fn run() {
             commands::types::export_type_json,
             commands::types::generate_imhex_pattern,
             commands::types::find_functions_using_type_cmd,
-            
             commands::types::create_global,
             commands::types::update_global,
             commands::types::delete_global,
             commands::types::get_global_full_info,
-            
             commands::types::create_native,
             commands::types::update_native,
             commands::types::delete_native,
             commands::types::get_native_full_info,
-            
             commands::types::create_constant,
             commands::types::update_constant,
             commands::types::delete_constant,
             commands::types::get_constant_full_info,
-
             commands::types::create_string,
             commands::types::update_string,
             commands::types::delete_string,
             commands::types::get_string_full_info,
-            
             commands::types::create_int,
             commands::types::update_int,
             commands::types::delete_int,
             commands::types::get_int_full_info,
-            
             commands::types::create_float,
             commands::types::update_float,
             commands::types::delete_float,
             commands::types::get_float_full_info,
-            
             commands::data::get_file_list,
             commands::data::get_string_list,
             commands::data::get_global_list,
@@ -117,11 +107,9 @@ pub fn run() {
             commands::data::get_float_list,
             commands::data::get_bytes_list,
             commands::data::get_bytes_full_info,
-            
             commands::decompiler::get_decompiled_info,
             commands::decompiler::get_inspector_info,
             commands::decompiler::get_disassembler_info,
-            
             commands::export::import_function_json,
             commands::export::export_function_json,
             commands::export::save_function_list,
@@ -129,7 +117,6 @@ pub fn run() {
             commands::export::save_file_list,
             commands::export::save_stripped_bytecode,
             commands::export::save_disassembled_code,
-            
             commands::config::init_config,
             commands::config::save_config,
             commands::config::set_config_theme,
@@ -140,12 +127,12 @@ pub fn run() {
             commands::config::get_config_colorscheme,
             commands::config::get_config_recent_files,
             commands::config::set_config_openrouter_key,
-            commands::config::get_config_openrouter_key,
+            commands::config::has_config_openrouter_key,
             commands::config::set_config_ai_decompiler,
             commands::config::get_config_ai_decompiler,
             commands::config::set_config_prompt,
             commands::config::get_config_prompt,
-            
+            commands::ai::decompile_with_openrouter,
             commands::ai::save_ai_decompilation,
             commands::ai::get_ai_decompilation,
             commands::ai::get_ai_decompiled_functions,
@@ -153,7 +140,6 @@ pub fn run() {
             commands::ai::update_replaced_decompilations,
             commands::ai::remove_ai_decompilation,
             commands::ai::remove_all_decompilations,
-            
             commands::history::add_history_item,
             commands::history::get_history_items,
         ])

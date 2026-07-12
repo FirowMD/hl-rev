@@ -1,8 +1,9 @@
+use crate::app_data::Storage;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[derive(Clone)]
 pub struct ReadBinaryFileHandler {
@@ -16,8 +17,35 @@ impl ToolHandler for ReadBinaryFileHandler {
             .get("path")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'path'".to_string()))?;
-        let bytes = std::fs::read(path).map_err(|e| McpError::Internal(e.to_string()))?;
-        let json_str = serde_json::to_string(&bytes).map_err(|e| McpError::Internal(e.to_string()))?;
+        let requested_path =
+            std::fs::canonicalize(path).map_err(|e| McpError::Internal(e.to_string()))?;
+
+        let target_file_path = {
+            let state = self.app_handle.state::<Storage>();
+            let app_data = state
+                .app_data
+                .lock()
+                .map_err(|e| McpError::Internal(e.to_string()))?;
+
+            if app_data.target_file_path.is_empty() || app_data.bytecode.is_none() {
+                return Err(McpError::Validation("bytecode not loaded".to_string()));
+            }
+
+            app_data.target_file_path.clone()
+        };
+
+        let loaded_path = std::fs::canonicalize(&target_file_path)
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+
+        if requested_path != loaded_path {
+            return Err(McpError::Validation(
+                "read_binary_file can only read the currently loaded bytecode file".to_string(),
+            ));
+        }
+
+        let bytes = std::fs::read(requested_path).map_err(|e| McpError::Internal(e.to_string()))?;
+        let json_str =
+            serde_json::to_string(&bytes).map_err(|e| McpError::Internal(e.to_string()))?;
         Ok(CallToolResult::text(json_str))
     }
 }
@@ -27,7 +55,7 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     server
         .add_tool(
             "read_binary_file".to_string(),
-            Some("Read file bytes".to_string()),
+            Some("Read bytes from the currently loaded bytecode file".to_string()),
             json!({
                 "type": "object",
                 "properties": { "path": { "type": "string" } },
