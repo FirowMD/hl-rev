@@ -1,11 +1,8 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
-  import { save } from "@tauri-apps/plugin-dialog";
-  import VirtualList from 'svelte-tiny-virtual-list';
 
   let inspectorContent = "";
-  let inspectorTitle = "Inspector";
 
   async function bytecodeItemSelectedHandler(e: Event) {
     try {
@@ -35,13 +32,8 @@
   });
 </script>
 
-<div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 h-full">
-    <header class="flex items-center justify-between p-3 h-12">
-      <h5 class="h5">Inspector</h5>
-    </header>
-    <section class="card preset-outlined-surface-500 bg-surface-900 p-4">
-      <pre>{inspectorContent}</pre>
-    </section>
-  </div>
+<div class="h-full overflow-hidden">
+  <section class="h-full overflow-auto rounded-sm border border-surface-700/70 bg-surface-900/80 p-4">
+    <pre class="text-sm leading-relaxed">{inspectorContent}</pre>
+  </section>
 </div>

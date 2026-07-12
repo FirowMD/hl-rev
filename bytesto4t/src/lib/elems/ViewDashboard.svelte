@@ -14,13 +14,8 @@
   });
 </script>
 
-<div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 h-full">
-    <header class="flex items-center justify-between p-3 h-12">
-      <h5 class="h5">Dashboard</h5>
-    </header>
-    <section class="card preset-outlined-surface-500 bg-surface-900 p-4">
-      <pre>{dashboardInfo}</pre>
-    </section>
-  </div>
+<div class="h-full overflow-hidden">
+  <section class="h-full overflow-auto rounded-sm border border-surface-700/70 bg-surface-900/80 p-4">
+    <pre class="text-sm leading-relaxed">{dashboardInfo}</pre>
+  </section>
 </div>

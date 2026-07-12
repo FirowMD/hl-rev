@@ -26,6 +26,8 @@
 @import '@skeletonlabs/skeleton/themes/wintry';
 
 @import './bytesto4t-theme';
+@import './firow-theme';
+@import './lib/styles/presets.css';
 
 @import '@skeletonlabs/skeleton-svelte';
 
@@ -45,4 +47,103 @@
 * {
     scrollbar-color: var(--color-surface-500) var(--color-surface-900);
     scrollbar-width: thin;
+}
+
+.workspace-shell,
+.side-panel,
+.subnav-layout {
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--color-surface-900) 78%, transparent), transparent 42%),
+        color-mix(in srgb, var(--color-surface-950) 94%, black);
+    border: 1px solid color-mix(in srgb, var(--color-surface-700) 72%, transparent);
+}
+
+.workspace-header,
+.side-panel-header,
+.subnav-list,
+.code-view-toolbar {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-surface-800) 62%, transparent), transparent),
+        color-mix(in srgb, var(--color-surface-900) 86%, black);
+}
+
+.code-view {
+    border: 1px solid color-mix(in srgb, var(--color-surface-700) 72%, transparent);
+    background:
+        linear-gradient(135deg, color-mix(in srgb, var(--color-surface-900) 72%, transparent), transparent 52%),
+        color-mix(in srgb, var(--color-surface-900) 84%, black);
+}
+
+.code-view-toolbar {
+    border-bottom: 1px solid color-mix(in srgb, var(--color-surface-700) 70%, transparent);
+}
+
+.workspace-tab,
+.side-panel-tab,
+.subnav-tab {
+    border: 1px solid transparent;
+    color: var(--color-surface-300);
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        color 120ms ease;
+}
+
+.workspace-tab:hover,
+.side-panel-tab:hover,
+.subnav-tab:hover {
+    background: color-mix(in srgb, var(--color-surface-700) 32%, transparent);
+    color: var(--color-surface-50);
+}
+
+.workspace-tab-active,
+.side-panel-tab-active,
+.subnav-tab-active {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--color-primary-500) 22%, transparent), transparent),
+        color-mix(in srgb, var(--color-surface-700) 72%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary-500) 58%, transparent);
+    color: var(--color-surface-50);
+}
+
+.explorer-search {
+    height: 1.75rem;
+    min-height: 1.75rem;
+    border-color: color-mix(in srgb, var(--color-surface-700) 80%, transparent);
+    background-color: color-mix(in srgb, var(--color-surface-900) 86%, black);
+}
+
+.explorer-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    min-height: 1.45rem;
+    padding: 0.125rem 0.45rem;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-surface-700) 62%, transparent);
+    border-radius: var(--radius-container, 0.25rem);
+    background:
+        repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-surface-50) 4%, transparent) 0 1px, transparent 1px 4px),
+        color-mix(in srgb, var(--color-surface-800) 70%, var(--color-surface-950));
+    color: var(--color-surface-100);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    text-align: left;
+}
+
+.explorer-row:hover {
+    border-color: color-mix(in srgb, var(--color-primary-500) 55%, transparent);
+    background:
+        repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-surface-50) 5%, transparent) 0 1px, transparent 1px 4px),
+        color-mix(in srgb, var(--color-surface-700) 72%, var(--color-surface-950));
+}
+
+.explorer-row:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-primary-500) 72%, transparent);
+    outline-offset: 1px;
+}
+
+.explorer-index {
+    color: var(--color-tertiary-200);
 }

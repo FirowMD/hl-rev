@@ -8,10 +8,10 @@
   let searchQuery = $state("");
 
   // Context menu state
-  let showMenu = false;
-  let menuX = 0;
-  let menuY = 0;
-  let selectedHistoryItem: HistoryItem | null = null;
+  let showMenu = $state(false);
+  let menuX = $state(0);
+  let menuY = $state(0);
+  let selectedHistoryItem = $state<HistoryItem | null>(null);
 
   async function loadHistory() {
     try {
@@ -121,15 +121,15 @@
 </script>
 
 <div class="h-full">
-  <div class="h-10">
+  <div class="h-8">
     <input 
       bind:value={searchQuery} 
       type="text" 
-      class="input w-full text-left h-5/6 focus:outline-none" 
+      class="input explorer-search w-full text-left focus:outline-none" 
       placeholder="Search" 
     />
   </div>
-  <div class="h-[calc(100%-2.5rem)] overflow-y-auto">
+  <div class="h-[calc(100%-2rem)] overflow-y-auto">
     <VirtualList 
       width="100%" 
       height="100%" 
@@ -159,7 +159,7 @@
         <button 
           onclick={onClickButton}
           type="button" 
-          class="btn w-full preset-filled-surface-500 text-xs truncate"
+          class="explorer-row truncate"
           data-name={filteredItems[index].name}
           data-type={filteredItems[index].typ}
         >

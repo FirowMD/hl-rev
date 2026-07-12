@@ -15,7 +15,6 @@
     type: string;
   }
 
-  let decompilerTitle = "Decompiler";
   let functionName = $state("");
   let decompiledCode = $state("");
   let originalCode = $state("");
@@ -196,36 +195,42 @@
   });
 </script>
 
-<div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 h-full">
-    <header class="flex items-center justify-between p-3 h-12">
-      <div class="flex items-center gap-2 min-w-0">
-        <h5 class="h5">{decompilerTitle}</h5>
+<div class="h-full min-h-0 overflow-hidden">
+  <section class="code-view flex h-full min-h-0 flex-col overflow-hidden rounded-sm">
+    <header class="code-view-toolbar flex min-h-10 shrink-0 items-center justify-between gap-3 px-3 py-2">
+      <div class="flex min-w-0 items-center gap-2 text-xs">
         {#if functionName !== ""}
-          <h5 class="h5 truncate">{functionName}</h5>
+          <span class="truncate font-semibold text-surface-100">{functionName}</span>
           {#if hasManualEdit}
             <span class="badge preset-filled-warning-500 text-xs">Edited</span>
           {/if}
+        {:else}
+          <span class="text-surface-500">No function selected</span>
         {/if}
       </div>
       <div class="flex gap-2">
-        <button type="button" class="btn preset-filled-surface-500" onclick={toggleEdit}>
+        <button
+          type="button"
+          class="btn preset-tonal-grain-raised-surface"
+          onclick={toggleEdit}
+          disabled={functionName === "" || decompiledCode === ""}
+        >
           {isEditing ? 'Cancel' : 'Edit'}
         </button>
         {#if isEditing}
-          <button type="button" class="btn preset-filled-surface-500" onclick={saveManualEdit}>
+          <button type="button" class="btn preset-gradient-primary-grain" onclick={saveManualEdit}>
             Save
           </button>
         {/if}
         {#if hasManualEdit || isEditing}
-          <button type="button" class="btn preset-filled-surface-500" onclick={reDecompile}>
+          <button type="button" class="btn preset-tonal-grain-raised-surface" onclick={reDecompile}>
             Re-decompile
           </button>
         {/if}
       </div>
     </header>
 
-    <section class="card preset-outlined-surface-500 bg-surface-900 p-2 h-[calc(100%-3rem)] overflow-hidden">
+    <div class="min-h-0 flex-1 overflow-hidden p-2">
       {#if isEditing}
         <textarea
           class="textarea bg-surface-800 w-full h-full font-mono text-sm resize-none focus:outline-none"
@@ -246,6 +251,6 @@
           <pre>{decompiledCode}</pre>
         </div>
       {/if}
-    </section>
-  </div>
+    </div>
+  </section>
 </div>

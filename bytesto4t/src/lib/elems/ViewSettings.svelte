@@ -28,14 +28,11 @@
 </script>
 
 <div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 h-full">
-    <header class="flex items-center justify-between p-3 h-12">
-      <h5 class="h5">Settings</h5>
-    </header>
-    <section class="card preset-outlined-surface-500 bg-surface-900 p-4 space-y-2">
-      <h5 class="h5">Theme</h5>
-      <select class="select bg-surface-800 focus:outline-none" size=1 bind:value={selectedTheme} on:change={changeColorscheme}>
+  <section class="max-w-xl rounded-sm border border-surface-700/70 preset-gradient-surface-grain-medium bg-surface-900/80 p-4 space-y-2">
+      <label class="block text-sm font-semibold text-surface-100" for="theme-select">Theme</label>
+      <select id="theme-select" class="select bg-surface-800 focus:outline-none" size=1 bind:value={selectedTheme} on:change={changeColorscheme}>
         <option value="bytesto4t">Bytesto4t</option>
+        <option value="Firow">Firow</option>
         <option value="catppuccin">Catppuccin</option>
         <option value="cerberus">Cerberus</option>
         <option value="concord">Concord</option>
@@ -59,6 +56,5 @@
         <option value="vox">Vox</option>
         <option value="wintry">Wintry</option>
       </select>
-    </section>
-  </div>
+  </section>
 </div>

@@ -1,0 +1,251 @@
+.preset-gradient-primary,
+.preset-pattern-diagonal-primary,
+.preset-gradient-primary-grain,
+.preset-gradient-primary-grain-medium,
+.preset-tonal-grain-soft-primary,
+.preset-tonal-grain-raised-primary {
+    --preset-color-900: var(--color-primary-900);
+    --preset-color-950: var(--color-primary-950);
+    --preset-color-50: var(--color-primary-50);
+    --preset-color-200: var(--color-primary-200);
+    --preset-color-300: var(--color-primary-300);
+    --preset-color-500: var(--color-primary-500);
+    --preset-color-contrast: var(--color-primary-100);
+}
+
+.preset-gradient-secondary,
+.preset-pattern-diagonal-secondary,
+.preset-gradient-secondary-grain,
+.preset-gradient-secondary-grain-medium,
+.preset-tonal-grain-soft-secondary,
+.preset-tonal-grain-raised-secondary {
+    --preset-color-900: var(--color-secondary-900);
+    --preset-color-950: var(--color-secondary-950);
+    --preset-color-50: var(--color-secondary-50);
+    --preset-color-200: var(--color-secondary-200);
+    --preset-color-300: var(--color-secondary-300);
+    --preset-color-500: var(--color-secondary-500);
+    --preset-color-contrast: var(--color-secondary-100);
+}
+
+.preset-gradient-tertiary,
+.preset-pattern-diagonal-tertiary,
+.preset-gradient-tertiary-grain,
+.preset-gradient-tertiary-grain-medium,
+.preset-tonal-grain-soft-tertiary,
+.preset-tonal-grain-raised-tertiary {
+    --preset-color-900: var(--color-tertiary-900);
+    --preset-color-950: var(--color-tertiary-950);
+    --preset-color-50: var(--color-tertiary-50);
+    --preset-color-200: var(--color-tertiary-200);
+    --preset-color-300: var(--color-tertiary-300);
+    --preset-color-500: var(--color-tertiary-500);
+    --preset-color-contrast: var(--color-tertiary-100);
+}
+
+.preset-gradient-success,
+.preset-pattern-diagonal-success,
+.preset-gradient-success-grain,
+.preset-gradient-success-grain-medium,
+.preset-tonal-grain-soft-success,
+.preset-tonal-grain-raised-success {
+    --preset-color-900: var(--color-success-900);
+    --preset-color-950: var(--color-success-950);
+    --preset-color-50: var(--color-success-50);
+    --preset-color-200: var(--color-success-200);
+    --preset-color-300: var(--color-success-300);
+    --preset-color-500: var(--color-success-500);
+    --preset-color-contrast: var(--color-success-100);
+}
+
+.preset-gradient-warning,
+.preset-pattern-diagonal-warning,
+.preset-gradient-warning-grain,
+.preset-gradient-warning-grain-medium,
+.preset-tonal-grain-soft-warning,
+.preset-tonal-grain-raised-warning {
+    --preset-color-900: var(--color-warning-900);
+    --preset-color-950: var(--color-warning-950);
+    --preset-color-50: var(--color-warning-50);
+    --preset-color-200: var(--color-warning-200);
+    --preset-color-300: var(--color-warning-300);
+    --preset-color-500: var(--color-warning-500);
+    --preset-color-contrast: var(--color-warning-100);
+}
+
+.preset-gradient-error,
+.preset-pattern-diagonal-error,
+.preset-gradient-error-grain,
+.preset-gradient-error-grain-medium,
+.preset-tonal-grain-soft-error,
+.preset-tonal-grain-raised-error {
+    --preset-color-900: var(--color-error-900);
+    --preset-color-950: var(--color-error-950);
+    --preset-color-50: var(--color-error-50);
+    --preset-color-200: var(--color-error-200);
+    --preset-color-300: var(--color-error-300);
+    --preset-color-500: var(--color-error-500);
+    --preset-color-contrast: var(--color-error-100);
+}
+
+.preset-gradient-surface,
+.preset-pattern-diagonal-surface,
+.preset-gradient-surface-grain,
+.preset-gradient-surface-grain-medium,
+.preset-tonal-grain-soft-surface,
+.preset-tonal-grain-raised-surface {
+    --preset-color-900: var(--color-surface-900);
+    --preset-color-950: var(--color-surface-950);
+    --preset-color-50: var(--color-surface-50);
+    --preset-color-200: var(--color-surface-200);
+    --preset-color-300: var(--color-surface-300);
+    --preset-color-500: var(--color-surface-500);
+    --preset-color-contrast: var(--color-surface-100);
+}
+
+.preset-gradient-primary,
+.preset-gradient-secondary,
+.preset-gradient-tertiary,
+.preset-gradient-success,
+.preset-gradient-warning,
+.preset-gradient-error,
+.preset-gradient-surface {
+    background-image: linear-gradient(135deg, var(--preset-color-900), var(--preset-color-950));
+    color: var(--preset-color-contrast);
+}
+
+.preset-pattern-diagonal-primary,
+.preset-pattern-diagonal-secondary,
+.preset-pattern-diagonal-tertiary,
+.preset-pattern-diagonal-success,
+.preset-pattern-diagonal-warning,
+.preset-pattern-diagonal-error,
+.preset-pattern-diagonal-surface {
+    background-image:
+        repeating-linear-gradient(
+            45deg,
+            rgba(255, 255, 255, 0.03) 0 10px,
+            rgba(255, 255, 255, 0) 10px 20px
+        ),
+        linear-gradient(180deg, var(--preset-color-900), var(--preset-color-950));
+    color: var(--preset-color-contrast);
+}
+
+.preset-gradient-primary-grain,
+.preset-gradient-secondary-grain,
+.preset-gradient-tertiary-grain,
+.preset-gradient-success-grain,
+.preset-gradient-warning-grain,
+.preset-gradient-error-grain,
+.preset-gradient-surface-grain {
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.015) 0px,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 1px,
+            transparent 2px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.015) 0px,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 1px,
+            transparent 2px
+        ),
+        linear-gradient(180deg, var(--preset-color-900), var(--preset-color-950));
+    color: var(--preset-color-contrast);
+}
+
+.preset-gradient-primary-grain-medium,
+.preset-gradient-secondary-grain-medium,
+.preset-gradient-tertiary-grain-medium,
+.preset-gradient-success-grain-medium,
+.preset-gradient-warning-grain-medium,
+.preset-gradient-error-grain-medium,
+.preset-gradient-surface-grain-medium {
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.015) 0px,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 2px,
+            transparent 4px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.015) 0px,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 2px,
+            transparent 4px
+        ),
+        linear-gradient(180deg, var(--preset-color-900), var(--preset-color-950));
+    color: var(--preset-color-contrast);
+}
+
+
+.preset-tonal-grain-soft-primary,
+.preset-tonal-grain-soft-secondary,
+.preset-tonal-grain-soft-tertiary,
+.preset-tonal-grain-soft-success,
+.preset-tonal-grain-soft-warning,
+.preset-tonal-grain-soft-error,
+.preset-tonal-grain-soft-surface {
+    background-color: color-mix(in oklab, var(--preset-color-500) 20%, transparent);
+    color: var(--preset-color-50);
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.preset-tonal-grain-soft-primary:hover,
+.preset-tonal-grain-soft-secondary:hover,
+.preset-tonal-grain-soft-tertiary:hover,
+.preset-tonal-grain-soft-success:hover,
+.preset-tonal-grain-soft-warning:hover,
+.preset-tonal-grain-soft-error:hover,
+.preset-tonal-grain-soft-surface:hover {
+    background-color: color-mix(in oklab, var(--preset-color-900) 44%, transparent);
+}
+
+.preset-tonal-grain-soft-primary:active,
+.preset-tonal-grain-soft-secondary:active,
+.preset-tonal-grain-soft-tertiary:active,
+.preset-tonal-grain-soft-success:active,
+.preset-tonal-grain-soft-warning:active,
+.preset-tonal-grain-soft-error:active,
+.preset-tonal-grain-soft-surface:active {
+    background-color: color-mix(in oklab, var(--preset-color-900) 44%, transparent);
+}
+
+.preset-tonal-grain-raised-primary,
+.preset-tonal-grain-raised-secondary,
+.preset-tonal-grain-raised-tertiary,
+.preset-tonal-grain-raised-success,
+.preset-tonal-grain-raised-warning,
+.preset-tonal-grain-raised-error,
+.preset-tonal-grain-raised-surface {
+    background-color: color-mix(in oklab, var(--preset-color-900) 45%, transparent);
+    color: var(--preset-color-50);
+    transition: background-color 120ms ease;
+}
+
+.preset-tonal-grain-raised-primary:hover,
+.preset-tonal-grain-raised-secondary:hover,
+.preset-tonal-grain-raised-tertiary:hover,
+.preset-tonal-grain-raised-success:hover,
+.preset-tonal-grain-raised-warning:hover,
+.preset-tonal-grain-raised-error:hover,
+.preset-tonal-grain-raised-surface:hover {
+    background-color: color-mix(in oklab, var(--preset-color-950) 60%, transparent);
+}
+
+.preset-tonal-grain-raised-primary:active,
+.preset-tonal-grain-raised-secondary:active,
+.preset-tonal-grain-raised-tertiary:active,
+.preset-tonal-grain-raised-success:active,
+.preset-tonal-grain-raised-warning:active,
+.preset-tonal-grain-raised-error:active,
+.preset-tonal-grain-raised-surface:active {
+    background-color: color-mix(in oklab, var(--preset-color-950) 60%, transparent);
+}

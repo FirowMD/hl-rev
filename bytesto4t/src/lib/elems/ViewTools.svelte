@@ -11,7 +11,6 @@
   let references: string[] = $state([]);
   let elementIndex: number | null = $state(null);
 
-  // Create a store for the active tools tab
   const activeToolsTab = writable('export');
 
   function parseReference(ref: string) {
@@ -32,7 +31,6 @@
     }
   }
 
-  // Define the tools tabs
   const toolsTabs = [
     { 
       id: 'export', 
@@ -71,43 +69,39 @@
   });
 </script>
 
-<div class="h-full overflow-y-auto flex flex-col">
-  <header class="flex items-center justify-between p-3 h-12">
-    <h5 class="h5">Tools</h5>
-  </header>
-  <section class="card preset-outlined-surface-500 bg-surface-900 p-0 h-[calc(100%-3rem)] overflow-hidden flex flex-col">
-    <div class="flex border-b border-surface-700 overflow-x-auto">
+<div class="h-full min-h-0 flex flex-col gap-2">
+  <section class="subnav-layout grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] overflow-hidden rounded-sm">
+    <nav class="subnav-list flex flex-col gap-1 overflow-y-auto border-r border-surface-700/70 p-2" aria-label="Tools">
       {#each toolsTabs as tab}
         <button
-          class="px-4 py-1 { $activeToolsTab === tab.id ? 'bg-surface-800 border-b-2 border-primary-500' : 'hover:bg-surface-800/50'}"
+          class="subnav-tab w-full rounded px-3 py-2 text-left text-xs font-medium { $activeToolsTab === tab.id ? 'subnav-tab-active' : ''}"
           onclick={() => activeToolsTab.set(tab.id)}
           title={tab.description}
+          aria-current={$activeToolsTab === tab.id ? 'page' : undefined}
         >
           {tab.label}
         </button>
       {/each}
-    </div>
-    <div class="flex-1 overflow-y-auto p-3">
+    </nav>
+
+    <div class="min-h-0 overflow-y-auto p-3">
       {#each toolsTabs as tab}
         {#if $activeToolsTab === tab.id}
-          <div class="space-y-2">
-            <div class="text-sm text-surface-400 border-l-2 border-primary-500 pl-3 mb-4">
-              {tab.description}
-            </div>
-            <svelte:component this={tab.component} />
+          {@const Component = tab.component}
+          <div class="mx-auto max-w-5xl">
+            <Component />
           </div>
         {/if}
       {/each}
     </div>
   </section>
 
-  <!-- References section (if needed) -->
   {#if references.length > 0}
-    <div class="border-t border-surface-700 p-3 bg-surface-800">
-      <h6 class="text-sm font-semibold mb-2 text-surface-200">References</h6>
-      <div class="text-xs text-surface-400">
-        Element Index: {elementIndex ?? 'None'} | References: {references.length}
-      </div>
+    <div class="rounded-sm border border-surface-700/70 bg-surface-900/80 px-3 py-2 text-xs text-surface-300">
+      References: {references.length}
+      {#if elementIndex !== null}
+        <span class="text-surface-500"> for #{elementIndex}</span>
+      {/if}
     </div>
   {/if}
 </div>

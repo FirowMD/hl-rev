@@ -151,15 +151,15 @@
 </script>
 
 <div class="h-full">
-  <div class="h-10">
+  <div class="h-8">
       <input
         bind:value={searchQuery}
         type="text"
-        class="input w-full text-left h-5/6 focus:outline-none"
+        class="input explorer-search w-full text-left focus:outline-none"
         placeholder="Search"
       />
   </div>
-  <div class="h-[calc(100%-2.5rem)] overflow-y-auto">
+  <div class="h-[calc(100%-2rem)] overflow-y-auto">
     <VirtualList width="100%" height="100%" itemCount={filteredList.length} itemSize={27} overscanCount={50}>
         <div
           slot="item" let:index let:style {style}
@@ -182,10 +182,10 @@
             }
           }}
         >
-          <button on:click={onClickButton} type="button" class="btn w-full preset-filled-surface-500 text-xs truncate">
+          <button on:click={onClickButton} type="button" class="explorer-row truncate">
             <div class="flex flex-row justify-start w-full">
               <span id="functionName" class="pointer-events-none">{splitText(filteredList[index])[0]}</span>
-              <span id="functionIndex" class="text-tertiary-50 pointer-events-none">{splitText(filteredList[index])[1]}</span>
+              <span id="functionIndex" class="explorer-index pointer-events-none">{splitText(filteredList[index])[1]}</span>
             </div>
           </button>
         </div>

@@ -113,7 +113,7 @@
       <input
         bind:value={searchQuery}
         type="text"
-        class="input w-full"
+        class="input explorer-search w-full"
         placeholder="Search functions..."
         disabled={loading}
       />
@@ -147,22 +147,22 @@
           >
             <div slot="item" let:index let:style {style} class="pr-2">
               {#if splitText(filteredList[index])[1].startsWith('@native_')}
-                <div class="w-full p-2 bg-surface-600 rounded text-xs truncate text-left opacity-75">
+                <div class="explorer-row truncate opacity-75">
                   <div class="flex flex-row justify-start w-full">
                     <span class="text-warning-400">[Native]</span>
                     <span class="ml-2">{splitText(filteredList[index])[0]}</span>
-                    <span class="text-tertiary-50 ml-auto">{splitText(filteredList[index])[1]}</span>
+                    <span class="explorer-index ml-auto">{splitText(filteredList[index])[1]}</span>
                   </div>
                 </div>
               {:else}
                 <button 
                   onclick={onClickFunction} 
                   type="button" 
-                  class="btn w-full preset-filled-surface-500 text-xs truncate text-left justify-start"
+                  class="explorer-row truncate"
                 >
                   <div class="flex flex-row justify-start w-full">
                     <span id="functionName" class="pointer-events-none">{splitText(filteredList[index])[0]}</span>
-                    <span id="functionIndex" class="text-tertiary-50 pointer-events-none ml-auto">{splitText(filteredList[index])[1]}</span>
+                    <span id="functionIndex" class="explorer-index pointer-events-none ml-auto">{splitText(filteredList[index])[1]}</span>
                   </div>
                 </button>
               {/if}

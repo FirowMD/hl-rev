@@ -4,8 +4,6 @@
   import { save } from "@tauri-apps/plugin-dialog";
   import VirtualList from 'svelte-tiny-virtual-list';
 
-
-  let disassemblerTitle = "Disassembler";
   let functionName = "";
   let disassembledCode = "";
   let disassembledCodeOptimized: string[] = [];
@@ -27,10 +25,12 @@
 
   async function onClickSaveDisasmHandler() {
     try {
-      functionName = functionName.split(" ")[1];
-      var funcName = "disasm_" + functionName.split("@")[1] + ".txt";
-      var findex = functionName.split("@")[1];
-      findex = "@" + findex;
+      const selectedFunction = functionName.split(" ")[1] ?? functionName;
+      const functionIndex = selectedFunction.split("@")[1];
+      if (!functionIndex) return;
+
+      const funcName = "disasm_" + functionIndex + ".txt";
+      const findex = "@" + functionIndex;
 
       const result = await save({
         defaultPath: funcName,
@@ -65,38 +65,46 @@
     }
   }
 
-  let codeElement: HTMLPreElement;
-
   onMount(() => {
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     updateDisassembler();
   });
 </script>
 
-<div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 h-full">
-    <header class="flex items-center justify-between p-3 h-12">
-      <h5 class="h5 truncate flex-1" title={disassemblerTitle}>{disassemblerTitle}</h5>
-      {#if functionName !== ""}
-        <button type="button" class="btn preset-filled-surface-500" onclick={onClickSaveDisasmHandler}>
-          Save
-        </button>
-      {/if}
-    </header>
-    <section class="card preset-outlined-surface-500 bg-surface-900 p-2 h-[calc(100%-3rem)] overflow-hidden">
-        {#if disassembledCode.length > 80000}
-          <VirtualList width="100%" height="100%" itemCount={disassembledCodeLineNumber} itemSize={25} overscanCount={200}>
-            <div slot="item" let:index let:style {style}>
-              <div class="w-full text-left truncate">
-                <span>{disassembledCodeOptimized[index]}</span>
-              </div>
-            </div>
-          </VirtualList>
+<div class="h-full min-h-0 overflow-hidden">
+  <section class="code-view flex h-full min-h-0 flex-col overflow-hidden rounded-sm">
+    <header class="code-view-toolbar flex min-h-10 shrink-0 items-center justify-between gap-3 px-3 py-2">
+      <div class="min-w-0 text-xs">
+        {#if functionName !== ""}
+          <span class="block truncate font-semibold text-surface-100" title={functionName}>{functionName}</span>
         {:else}
-          <div class="h-full bg-surface-800 overflow-y-auto p-4 rounded-container-token">
-            <pre>{disassembledCode}</pre>
-          </div>
+          <span class="text-surface-500">No function selected</span>
         {/if}
-    </section>
-  </div>
+      </div>
+      <button
+        type="button"
+        class="btn preset-tonal-grain-raised-surface"
+        onclick={onClickSaveDisasmHandler}
+        disabled={functionName === ""}
+      >
+        Save
+      </button>
+    </header>
+
+    <div class="min-h-0 flex-1 overflow-hidden p-2">
+      {#if disassembledCode.length > 80000}
+        <VirtualList width="100%" height="100%" itemCount={disassembledCodeLineNumber} itemSize={25} overscanCount={200}>
+          <div slot="item" let:index let:style {style}>
+            <div class="w-full text-left truncate">
+              <span>{disassembledCodeOptimized[index]}</span>
+            </div>
+          </div>
+        </VirtualList>
+      {:else}
+        <div class="h-full bg-surface-800 overflow-y-auto p-4 rounded-container-token">
+          <pre>{disassembledCode}</pre>
+        </div>
+      {/if}
+    </div>
+  </section>
 </div>

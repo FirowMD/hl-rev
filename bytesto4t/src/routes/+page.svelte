@@ -131,7 +131,7 @@
   });
 </script>
 
-<main class="w-full h-full p-4 bg-gradient-to-b from-surface-950 to-surface-950">
+<main class="w-full h-full p-4 bg-surface-950 preset-gradient-surface-grain">
   <div class="flex flex-col gap-2 w-full h-full">
     <div class="flex flex-row items-end space-x-4">
       <div class="h-14 w-14">
@@ -153,7 +153,7 @@
       />
       <button
         type="button"
-        class="btn preset-filled-surface-500 w-fit"
+        class="btn preset-tonal-grain-raised-surface w-fit"
         onclick={onClickBrowseHandler}
       >
         Browse
@@ -161,7 +161,7 @@
     </div>
     <button
       type="button"
-      class="btn preset-filled-surface-500 w-full"
+      class="btn preset-gradient-primary-grain w-full"
       onclick={switchOnNextPage}
     >
       Ready!

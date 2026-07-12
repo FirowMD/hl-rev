@@ -35,6 +35,12 @@
     { id: 'settings', label: 'Settings', component: ViewSettings }
   ];
 
+  function formatFileSize(size: number) {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
   async function loadFile() {
     try {
       const path = await invoke('get_target_file_path') as string;
@@ -43,7 +49,7 @@
       fileData = {
         buffer: new Uint8Array(bytes),
         size: bytes.length,
-        name: path.split('/').pop() ?? 'unknown'
+        name: path.split(/[\\/]/).pop() ?? 'unknown'
       };
     } catch (error) {
       console.error('Error loading file:', error);
@@ -377,19 +383,40 @@ async function handleFloatEdit(event: CustomEvent<any>) {
   }
 </script>
 
-<div class="w-full h-full bg-surface-950">
-  <div class="flex border-b border-surface-700 truncate overflow-x-auto">
-    {#each tabs as tab}
-      <button
-        class="px-4 py-1 {$mainPanelTab === tab.id ? 'bg-surface-800 border-b-2 border-primary-500' : 'hover:bg-surface-800/50'}"
-        onclick={() => mainPanelTab.set(tab.id)}
-      >
-        {tab.label}
-      </button>
-    {/each}
-  </div>
+<div class="workspace-shell w-full h-full overflow-hidden rounded-sm flex flex-col">
+  <header class="workspace-header flex min-h-12 items-center gap-3 border-b border-surface-700/70 px-3 py-2">
+    <div class="shrink-0">
+      <div class="text-[0.65rem] font-semibold uppercase text-surface-400">Workspace</div>
+      <strong class="block truncate text-sm text-surface-50">
+        {tabs.find((tab) => tab.id === $mainPanelTab)?.label ?? 'Dashboard'}
+      </strong>
+    </div>
 
-  <div class="px-2 py-1 h-[calc(100%-3rem)] overflow-hidden">
+    {#if fileData}
+      <div class="hidden min-w-0 flex-1 items-center gap-2 text-xs text-surface-400 md:flex">
+        <span class="truncate text-surface-200">{fileData.name}</span>
+        <span class="shrink-0 rounded border border-surface-700/70 px-1.5 py-0.5 text-[0.65rem] text-surface-400">
+          {formatFileSize(fileData.size)}
+        </span>
+      </div>
+    {:else}
+      <div class="hidden min-w-0 flex-1 text-xs text-surface-500 md:block">No bytecode loaded</div>
+    {/if}
+
+    <nav class="flex min-w-0 flex-[2_1_0%] justify-end gap-1 overflow-x-auto" aria-label="Workspace views">
+      {#each tabs as tab}
+        <button
+          class="workspace-tab h-8 shrink-0 rounded px-3 text-xs font-medium {$mainPanelTab === tab.id ? 'workspace-tab-active' : ''}"
+          onclick={() => mainPanelTab.set(tab.id)}
+          aria-current={$mainPanelTab === tab.id ? 'page' : undefined}
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </nav>
+  </header>
+
+  <div class="workspace-body min-h-0 flex-1 overflow-hidden p-2">
     {#each tabs as tab}
       {#if $mainPanelTab === tab.id}
         {#if tab.id === "constructor"}
@@ -413,7 +440,8 @@ async function handleFloatEdit(event: CustomEvent<any>) {
             on:floatEdit={handleFloatEdit}
           />
         {:else}
-          <svelte:component this={tab.component} />
+          {@const Component = tab.component}
+          <Component />
         {/if}
       {/if}
     {/each}

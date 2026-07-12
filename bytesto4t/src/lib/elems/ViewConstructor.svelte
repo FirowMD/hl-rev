@@ -11,7 +11,6 @@
 
   const dispatch = createEventDispatcher();
 
-  // Active tab state
   let activeTab = $state("functions");
 
   // Edit state for each constructor type
@@ -30,7 +29,6 @@
   let constantEditIndex = $state<number | null>(null);
   let constantModalMode = $state<'edit' | 'create'>('create');
 
-  // NEW: Edit state for string, int, float constructors
   let stringEditIndex = $state<number | null>(null);
   let stringModalMode = $state<'edit' | 'create'>('create');
   
@@ -40,7 +38,6 @@
   let floatEditIndex = $state<number | null>(null);
   let floatModalMode = $state<'edit' | 'create'>('create');
 
-  // Updated tab definitions
   const tabs = [
     { 
       id: 'functions', 
@@ -107,7 +104,6 @@
     activeTab = 'constants';
   }
 
-  // NEW: Edit methods for string, int, float
   export function editString(index: number) {
     stringEditIndex = index;
     stringModalMode = 'edit';
@@ -154,91 +150,76 @@
   }
 </script>
 
-<div class="h-full overflow-y-auto">
-  <div class="p-2 space-y-2 h-full">
-    <header class="flex items-center justify-between p-3 h-12">
-      <h5 class="h5">Constructor</h5>
-    </header>
-    <section class="card preset-outlined-surface-500 bg-surface-900 p-0 h-[calc(100%-3rem)] overflow-hidden flex flex-col">
-      <div class="flex border-b border-surface-700 overflow-x-auto">
-        {#each tabs as tab}
-          <button
-            class="px-4 py-1 {activeTab === tab.id ? 'bg-surface-800 border-b-2 border-primary-500' : 'hover:bg-surface-800/50'}"
-            onclick={() => switchTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        {/each}
-      </div>
-      <div class="flex-1 overflow-hidden p-2">
-        {#if activeTab === 'functions'}
-          <ViewFunctionConstructor
-            bind:modalMode={functionModalMode}
-            bind:editFunctionIndex={functionEditIndex}
-            on:save={(e) => forwardEvent('functionSave', e.detail)}
-            on:edit={(e) => forwardEvent('functionEdit', e.detail)}
-          />
-        {:else if activeTab === 'types'}
-          <ViewTypeConstructor
-            bind:modalMode={typeModalMode}
-            bind:editTypeIndex={typeEditIndex}
-            on:save={(e) => forwardEvent('typeSave', e.detail)}
-            on:edit={(e) => forwardEvent('typeEdit', e.detail)}
-          />
-        {:else if activeTab === 'globals'}
-          <ViewGlobalConstructor
-            bind:modalMode={globalModalMode}
-            bind:editGlobalIndex={globalEditIndex}
-            on:save={(e) => forwardEvent('globalSave', e.detail)}
-            on:edit={(e) => forwardEvent('globalEdit', e.detail)}
-          />
-        {:else if activeTab === 'natives'}
-          <ViewNativeConstructor
-            bind:modalMode={nativeModalMode}
-            bind:editNativeIndex={nativeEditIndex}
-            on:save={(e) => forwardEvent('nativeSave', e.detail)}
-            on:edit={(e) => forwardEvent('nativeEdit', e.detail)}
-          />
-        {:else if activeTab === 'constants'}
-          <ViewConstantConstructor
-            bind:modalMode={constantModalMode}
-            bind:editConstantIndex={constantEditIndex}
-            on:save={(e) => forwardEvent('constantSave', e.detail)}
-            on:edit={(e) => forwardEvent('constantEdit', e.detail)}
-          />
-        {:else if activeTab === 'strings'}
-          <ViewStringConstructor
-            bind:modalMode={stringModalMode}
-            bind:editStringIndex={stringEditIndex}
-            on:save={(e) => forwardEvent('stringSave', e.detail)}
-            on:edit={(e) => forwardEvent('stringEdit', e.detail)}
-          />
-        {:else if activeTab === 'ints'}
-          <ViewIntConstructor
-            bind:modalMode={intModalMode}
-            bind:editIntIndex={intEditIndex}
-            on:save={(e) => forwardEvent('intSave', e.detail)}
-            on:edit={(e) => forwardEvent('intEdit', e.detail)}
-          />
-        {:else if activeTab === 'floats'}
-          <ViewFloatConstructor
-            bind:modalMode={floatModalMode}
-            bind:editFloatIndex={floatEditIndex}
-            on:save={(e) => forwardEvent('floatSave', e.detail)}
-            on:edit={(e) => forwardEvent('floatEdit', e.detail)}
-          />
-        {/if}
-      </div>
-    </section>
+<div class="subnav-layout grid h-full min-h-0 grid-cols-[11rem_minmax(0,1fr)] overflow-hidden rounded-sm">
+  <nav class="subnav-list flex flex-col gap-1 overflow-y-auto border-r border-surface-700/70 p-2" aria-label="Constructor entities">
+    {#each tabs as tab}
+      <button
+        class="subnav-tab w-full rounded px-3 py-2 text-left text-xs font-medium {activeTab === tab.id ? 'subnav-tab-active' : ''}"
+        onclick={() => switchTab(tab.id)}
+        aria-current={activeTab === tab.id ? 'page' : undefined}
+      >
+        {tab.label}
+      </button>
+    {/each}
+  </nav>
+
+  <div class="min-h-0 overflow-y-auto p-3">
+    {#if activeTab === 'functions'}
+      <ViewFunctionConstructor
+        bind:modalMode={functionModalMode}
+        bind:editFunctionIndex={functionEditIndex}
+        on:save={(e) => forwardEvent('functionSave', e.detail)}
+        on:edit={(e) => forwardEvent('functionEdit', e.detail)}
+      />
+    {:else if activeTab === 'types'}
+      <ViewTypeConstructor
+        bind:modalMode={typeModalMode}
+        bind:editTypeIndex={typeEditIndex}
+        on:save={(e) => forwardEvent('typeSave', e.detail)}
+        on:edit={(e) => forwardEvent('typeEdit', e.detail)}
+      />
+    {:else if activeTab === 'globals'}
+      <ViewGlobalConstructor
+        bind:modalMode={globalModalMode}
+        bind:editGlobalIndex={globalEditIndex}
+        on:save={(e) => forwardEvent('globalSave', e.detail)}
+        on:edit={(e) => forwardEvent('globalEdit', e.detail)}
+      />
+    {:else if activeTab === 'natives'}
+      <ViewNativeConstructor
+        bind:modalMode={nativeModalMode}
+        bind:editNativeIndex={nativeEditIndex}
+        on:save={(e) => forwardEvent('nativeSave', e.detail)}
+        on:edit={(e) => forwardEvent('nativeEdit', e.detail)}
+      />
+    {:else if activeTab === 'constants'}
+      <ViewConstantConstructor
+        bind:modalMode={constantModalMode}
+        bind:editConstantIndex={constantEditIndex}
+        on:save={(e) => forwardEvent('constantSave', e.detail)}
+        on:edit={(e) => forwardEvent('constantEdit', e.detail)}
+      />
+    {:else if activeTab === 'strings'}
+      <ViewStringConstructor
+        bind:modalMode={stringModalMode}
+        bind:editStringIndex={stringEditIndex}
+        on:save={(e) => forwardEvent('stringSave', e.detail)}
+        on:edit={(e) => forwardEvent('stringEdit', e.detail)}
+      />
+    {:else if activeTab === 'ints'}
+      <ViewIntConstructor
+        bind:modalMode={intModalMode}
+        bind:editIntIndex={intEditIndex}
+        on:save={(e) => forwardEvent('intSave', e.detail)}
+        on:edit={(e) => forwardEvent('intEdit', e.detail)}
+      />
+    {:else if activeTab === 'floats'}
+      <ViewFloatConstructor
+        bind:modalMode={floatModalMode}
+        bind:editFloatIndex={floatEditIndex}
+        on:save={(e) => forwardEvent('floatSave', e.detail)}
+        on:edit={(e) => forwardEvent('floatEdit', e.detail)}
+      />
+    {/if}
   </div>
 </div>
-
-<style>
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    line-height: 1.4;
-  }
-</style>

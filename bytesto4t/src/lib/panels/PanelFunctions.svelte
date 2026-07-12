@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import ViewFunctions from "../elems/ViewFunctions.svelte";
   import ViewTypes from "../elems/ViewTypes.svelte";
   import ViewFiles from "../elems/ViewFiles.svelte";
@@ -15,19 +14,22 @@
   ];
 </script>
 
-<div class="w-full h-full bg-surface-950">
-  <div class="flex border-b border-surface-700 overflow-x-auto">
-    {#each tabs as tab}
-      <button
-        class="px-4 py-1 {activeTab === tab.id ? 'bg-surface-800 border-b-2 border-primary-500' : 'hover:bg-surface-800/50'}"
-        onclick={() => activeTab = tab.id}
-      >
-        {tab.label}
-      </button>
-    {/each}
+<div class="side-panel w-full h-full overflow-hidden rounded-sm flex flex-col">
+  <div class="side-panel-header flex items-center gap-2 border-b border-surface-700/70 px-2 py-1">
+    <span class="shrink-0 text-[0.65rem] font-semibold uppercase text-surface-400">Code</span>
+    <div class="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+      {#each tabs as tab}
+        <button
+          class="side-panel-tab h-7 shrink-0 rounded px-2 text-xs {activeTab === tab.id ? 'side-panel-tab-active' : ''}"
+          onclick={() => activeTab = tab.id}
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </div>
   </div>
 
-  <div class="px-2 py-1 h-[calc(100%-3rem)] overflow-hidden">
+  <div class="min-h-0 flex-1 px-2 py-1 overflow-hidden">
     {#each tabs as tab}
       {#if activeTab === tab.id}
         <svelte:component this={tab.component} />
