@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import { setContext } from 'svelte';
   import ViewDashboard from "../elems/ViewDashboard.svelte";
   import ViewInspector from "../elems/ViewInspector.svelte";
@@ -10,19 +10,13 @@
   import ViewSettings from "../elems/ViewSettings.svelte";
   import ViewAIDecompiler from "../elems/ViewAIDecompiler.svelte";
   import ViewConstructor from "../elems/ViewConstructor.svelte";
-  import type { FileData, BytecodeItemSelectedEvent } from '../elems/types';
+  import type { FileData } from '../elems/types';
   import { functionsRefreshKey, functionToEdit, typeToEdit, globalToEdit, nativeToEdit, constantToEdit, stringToEdit, intToEdit, floatToEdit, mainPanelTab, stringsRefreshKey, intsRefreshKey, floatsRefreshKey } from "../elems/types";
 
   let fileData = $state<FileData | undefined>();
 
   // References to constructor component for external edit triggers
   let constructorRef = $state<ViewConstructor>();
-
-  const isLargeFile = $derived((fileData?.size ?? 0) > 1024 * 1024);
-  
-  let hexScrollPosition = $state(0);
-  let hexTargetOffset = $state(-1);
-  let lastKnownFoffset = $state<number | null>(null);
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', component: ViewDashboard },
@@ -43,14 +37,7 @@
 
   async function loadFile() {
     try {
-      const path = await invoke('get_target_file_path') as string;
-      const bytes = await invoke('read_binary_file', { path }) as number[];
-      
-      fileData = {
-        buffer: new Uint8Array(bytes),
-        size: bytes.length,
-        name: path.split(/[\\/]/).pop() ?? 'unknown'
-      };
+      fileData = await invoke<FileData>('get_target_file_info');
     } catch (error) {
       console.error('Error loading file:', error);
       fileData = undefined;

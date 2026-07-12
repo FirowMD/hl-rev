@@ -4,13 +4,20 @@ use hlbc::Bytecode;
 use hlbc::fmt::EnhancedFmt;
 use crate::app_data::{Storage, AppItem};
 
+#[derive(serde::Serialize)]
+pub struct TargetFileInfo {
+    pub name: String,
+    pub size: u64,
+}
+
 #[tauri::command]
 pub fn set_target_file_path(file_path: &str, app_data: State<Storage>) -> Result<(), String> {
+    let path = Path::new(file_path);
+    let bytecode = Bytecode::from_file(path).map_err(|e| e.to_string())?;
+
     let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     app_data.target_file_path = file_path.to_string();
-
-    let path = Path::new(&app_data.target_file_path);
-    app_data.bytecode = Some(Bytecode::from_file(path).map_err(|e| e.to_string())?);
+    app_data.bytecode = Some(bytecode);
 
     Ok(())
 }
@@ -73,9 +80,25 @@ pub fn get_selected_item(app_data: State<Storage>) -> Result<Option<AppItem>, St
 }
 
 #[tauri::command]
-pub fn get_target_file_path(app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    Ok(app_data.target_file_path.clone())
+pub fn get_target_file_info(app_data: State<Storage>) -> Result<TargetFileInfo, String> {
+    let target_file_path = {
+        let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
+        app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+        app_data.target_file_path.clone()
+    };
+
+    let path = Path::new(&target_file_path);
+    let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    Ok(TargetFileInfo {
+        name,
+        size: metadata.len(),
+    })
 }
 
 #[tauri::command]
@@ -89,14 +112,6 @@ pub fn clear_references(app_data: State<Storage>) -> Result<(), String> {
 pub fn get_saved_references(app_data: State<Storage>) -> Result<Option<(usize, Vec<String>)>, String> {
     let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
     Ok(app_data.references.as_ref().map(|r| (r.element_index, r.references.clone())))
-}
-
-#[tauri::command]
-pub fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
-    match std::fs::read(path) {
-        Ok(bytes) => Ok(bytes),
-        Err(e) => Err(e.to_string())
-    }
 }
 
 #[tauri::command]

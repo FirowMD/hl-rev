@@ -53,10 +53,9 @@ pub fn run() {
             commands::bytecode::get_dashboard_info,
             commands::bytecode::set_selected_item,
             commands::bytecode::get_selected_item,
-            commands::bytecode::get_target_file_path,
+            commands::bytecode::get_target_file_info,
             commands::bytecode::clear_references,
             commands::bytecode::get_saved_references,
-            commands::bytecode::read_binary_file,
             commands::bytecode::merge_bytecode_with_file,
             
             commands::functions::get_function_list,

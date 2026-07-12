@@ -1,5 +1,4 @@
 export interface FileData {
-  buffer: Uint8Array;
   size: number;
   name: string;
 }
