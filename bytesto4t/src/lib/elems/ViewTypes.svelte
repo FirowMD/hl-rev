@@ -68,7 +68,7 @@
     selectedTypeIdx = parseInt(itemName.split('@')[1]);
   }
 
-  async function copyTypeMenu(e) {
+  async function copyTypeMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedTypeName) {
       await navigator.clipboard.writeText(selectedTypeName);
@@ -76,7 +76,7 @@
     showMenu = false;
   }
 
-  function editTypeMenu(e) {
+  function editTypeMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedTypeIdx !== null) {
       typeToEdit.set(selectedTypeIdx);
@@ -85,7 +85,7 @@
     showMenu = false;
   }
 
-  function findReferencesMenu(e) {
+  function findReferencesMenu(e?: Event) {
     console.log("Selected: ", selectedTypeIdx, selectedTypeName);
     e?.stopPropagation();
     if (selectedTypeIdx !== null) {
@@ -94,7 +94,7 @@
     showMenu = false;
   }
 
-  async function deleteTypeMenu(e) {
+  async function deleteTypeMenu(e?: Event) {
     e?.stopPropagation();
     showMenu = false;
   }

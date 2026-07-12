@@ -78,7 +78,7 @@
     selectedFloatIdx = parseInt(idxStr.replace("@", ""));
   }
 
-  async function copyFloatMenu(e) {
+  async function copyFloatMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedFloatName) {
       await navigator.clipboard.writeText(selectedFloatName);
@@ -86,7 +86,7 @@
     showMenu = false;
   }
 
-  function editFloatMenu(e) {
+  function editFloatMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedFloatIdx !== null) {
       floatToEdit.set(selectedFloatIdx);
@@ -95,7 +95,7 @@
     showMenu = false;
   }
   
-  async function deleteFloatMenu(e) {
+  async function deleteFloatMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

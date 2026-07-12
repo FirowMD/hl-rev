@@ -79,7 +79,7 @@
     selectedHistoryItem = filteredItems[idx];
   }
 
-  async function copyHistoryMenu(e) {
+  async function copyHistoryMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedHistoryItem) {
       await navigator.clipboard.writeText(selectedHistoryItem.name);
@@ -87,13 +87,13 @@
     showMenu = false;
   }
 
-  function editHistoryMenu(e) {
+  function editHistoryMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement edit logic
     showMenu = false;
   }
 
-  async function deleteHistoryMenu(e) {
+  async function deleteHistoryMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

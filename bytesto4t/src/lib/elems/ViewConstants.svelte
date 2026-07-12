@@ -78,7 +78,7 @@
     selectedConstantIdx = parseInt(idxStr.replace("@", ""));
   }
 
-  async function copyConstantMenu(e) {
+  async function copyConstantMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedConstantName) {
       await navigator.clipboard.writeText(selectedConstantName);
@@ -86,7 +86,7 @@
     showMenu = false;
   }
 
-  function editConstantMenu(e) {
+  function editConstantMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedConstantIdx !== null) {
       constantToEdit.set(selectedConstantIdx);
@@ -95,7 +95,7 @@
     showMenu = false;
   }
 
-  async function deleteConstantMenu(e) {
+  async function deleteConstantMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

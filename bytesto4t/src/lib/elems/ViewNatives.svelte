@@ -81,7 +81,7 @@
     selectedNativeIdx = parseInt(idxStr.replace("@", "").split(' ')[0]);
   }
 
-  async function copyNativeMenu(e) {
+  async function copyNativeMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedNativeName) {
       await navigator.clipboard.writeText(selectedNativeName);
@@ -89,7 +89,7 @@
     showMenu = false;
   }
 
-  function editNativeMenu(e) {
+  function editNativeMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedNativeIdx !== null) {
       nativeToEdit.set(selectedNativeIdx);
@@ -98,7 +98,7 @@
     showMenu = false;
   }
 
-  async function deleteNativeMenu(e) {
+  async function deleteNativeMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

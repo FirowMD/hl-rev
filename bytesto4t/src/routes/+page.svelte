@@ -117,9 +117,12 @@
     }
   }
 
-  onMount(async () => {
-    await invoke("init_config", {});
-    await getRecentFiles();
+  onMount(() => {
+    void (async () => {
+      await invoke("init_config", {});
+      await getRecentFiles();
+    })();
+
     document.addEventListener('click', handleGlobalClick);
     
     return () => {

@@ -77,7 +77,7 @@
     selectedStringIdx = parseInt(idxStr.replace("@", ""));
   }
 
-  async function copyStringMenu(e) {
+  async function copyStringMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedStringName) {
       await navigator.clipboard.writeText(selectedStringName);
@@ -85,7 +85,7 @@
     showMenu = false;
   }
 
-  function editStringMenu(e) {
+  function editStringMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedStringIdx !== null) {
       stringToEdit.set(selectedStringIdx);
@@ -94,7 +94,7 @@
     showMenu = false;
   }
 
-  async function deleteStringMenu(e) {
+  async function deleteStringMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

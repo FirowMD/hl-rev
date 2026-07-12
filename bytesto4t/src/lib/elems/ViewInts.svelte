@@ -78,7 +78,7 @@
     selectedIntIdx = parseInt(idxStr.replace("@", ""));
   }
 
-  async function copyIntMenu(e) {
+  async function copyIntMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedIntName) {
       await navigator.clipboard.writeText(selectedIntName);
@@ -86,7 +86,7 @@
     showMenu = false;
   }
 
-  function editIntMenu(e) {
+  function editIntMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedIntIdx !== null) {
       intToEdit.set(selectedIntIdx);
@@ -95,7 +95,7 @@
     showMenu = false;
   }
 
-  async function deleteIntMenu(e) {
+  async function deleteIntMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

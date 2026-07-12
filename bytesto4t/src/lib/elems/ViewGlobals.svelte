@@ -78,7 +78,7 @@
     selectedGlobalIdx = parseInt(idxStr.replace("@", ""));
   }
 
-  async function copyGlobalMenu(e) {
+  async function copyGlobalMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedGlobalName) {
       await navigator.clipboard.writeText(selectedGlobalName);
@@ -86,7 +86,7 @@
     showMenu = false;
   }
 
-  function editGlobalMenu(e) {
+  function editGlobalMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedGlobalIdx !== null) {
       globalToEdit.set(selectedGlobalIdx);
@@ -95,7 +95,7 @@
     showMenu = false;
   }
 
-  async function deleteGlobalMenu(e) {
+  async function deleteGlobalMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

@@ -284,12 +284,13 @@
 
   // FIXED: Get opcodes that match the selected opcode - removed $derived wrapper
   let selectedOpcodeInfo = $derived.by(() => {
-    if (!selectedOpcode) return null;
+    const opcodeName = selectedOpcode;
+    if (!opcodeName) return null;
     
     return opcodes.find(opcode => {
-      if (opcode.name === selectedOpcode) return true;
-      if (opcode.name.includes('/') && opcode.name.includes(selectedOpcode)) return true;
-      if (opcode.opcodes && opcode.opcodes.includes(selectedOpcode)) return true;
+      if (opcode.name === opcodeName) return true;
+      if (opcode.name.includes('/') && opcode.name.includes(opcodeName)) return true;
+      if (opcode.opcodes && opcode.opcodes.includes(opcodeName)) return true;
       return false;
     });
   });

@@ -41,7 +41,7 @@
 
   async function fetchNativeToEdit(idx: number) {
     try {
-      const native = await invoke("get_native_full_info", { index: idx });
+      const native = await invoke<{ lib?: unknown; name?: unknown; t?: unknown; findex?: unknown }>("get_native_full_info", { index: idx });
       console.log("Loaded native for editing:", native);
       
       // Parse the native data and populate form fields

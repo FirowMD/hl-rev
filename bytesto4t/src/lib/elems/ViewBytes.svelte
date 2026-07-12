@@ -77,7 +77,7 @@
     selectedByteIdx = parseInt(idxStr.replace("@", ""));
   }
 
-  async function copyByteMenu(e) {
+  async function copyByteMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedByteName) {
       await navigator.clipboard.writeText(selectedByteName);
@@ -85,7 +85,7 @@
     showMenu = false;
   }
 
-  function editByteMenu(e) {
+  function editByteMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedByteIdx !== null) {
       byteToEdit.set(selectedByteIdx);
@@ -94,7 +94,7 @@
     showMenu = false;
   }
 
-  async function deleteByteMenu(e) {
+  async function deleteByteMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;

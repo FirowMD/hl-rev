@@ -155,22 +155,22 @@
       innerType = String(type.Packed);
     } else if (type.Fun !== undefined) {
       typeKind = "fun";
-      functionArgs = type.Fun.args.map(arg => String(arg));
+      functionArgs = (type.Fun.args as unknown[]).map((arg) => String(arg));
       functionReturn = String(type.Fun.ret);
     } else if (type.Method !== undefined) {
       typeKind = "method";
-      functionArgs = type.Method.args.map(arg => String(arg));
+      functionArgs = (type.Method.args as unknown[]).map((arg) => String(arg));
       functionReturn = String(type.Method.ret);
     } else if (type.Obj !== undefined) {
       typeKind = "obj";
       typeName = String(type.Obj.name);
       superType = type.Obj.super_ ? String(type.Obj.super_) : "";
       globalRef = type.Obj.global ? String(type.Obj.global) : "";
-      objectFields = type.Obj.own_fields.map(field => ({
+      objectFields = (type.Obj.own_fields as Array<{ name: unknown; t: unknown }>).map((field) => ({
         name: String(field.name),
         fieldType: String(field.t)
       }));
-      objectProtos = type.Obj.protos.map(proto => ({
+      objectProtos = (type.Obj.protos as Array<{ name: unknown; findex: unknown; pindex: unknown }>).map((proto) => ({
         name: String(proto.name),
         findex: String(proto.findex),
         pindex: String(proto.pindex)
@@ -180,11 +180,11 @@
       typeName = String(type.Struct.name);
       superType = type.Struct.super_ ? String(type.Struct.super_) : "";
       globalRef = type.Struct.global ? String(type.Struct.global) : "";
-      objectFields = type.Struct.own_fields.map(field => ({
+      objectFields = (type.Struct.own_fields as Array<{ name: unknown; t: unknown }>).map((field) => ({
         name: String(field.name),
         fieldType: String(field.t)
       }));
-      objectProtos = type.Struct.protos.map(proto => ({
+      objectProtos = (type.Struct.protos as Array<{ name: unknown; findex: unknown; pindex: unknown }>).map((proto) => ({
         name: String(proto.name),
         findex: String(proto.findex),
         pindex: String(proto.pindex)
@@ -193,16 +193,16 @@
       typeKind = "enum";
       typeName = String(type.Enum.name);
       globalRef = type.Enum.global ? String(type.Enum.global) : "";
-      enumConstructs = type.Enum.constructs.map(construct => ({
+      enumConstructs = (type.Enum.constructs as Array<{ name: unknown; params: unknown[] }>).map((construct) => ({
         name: String(construct.name),
-        params: construct.params.map(p => String(p))
+        params: construct.params.map((p) => String(p))
       }));
     } else if (type.Abstract !== undefined) {
       typeKind = "abstract";
       typeName = String(type.Abstract.name);
     } else if (type.Virtual !== undefined) {
       typeKind = "virtual";
-      objectFields = type.Virtual.fields.map(field => ({
+      objectFields = (type.Virtual.fields as Array<{ name: unknown; t: unknown }>).map((field) => ({
         name: String(field.name),
         fieldType: String(field.t)
       }));

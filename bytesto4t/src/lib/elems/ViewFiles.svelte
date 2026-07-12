@@ -74,7 +74,7 @@
     selectedFileIdx = parseInt(itemName.substring(lastAtIndex + 1));
   }
 
-  async function copyFileMenu(e) {
+  async function copyFileMenu(e?: Event) {
     e?.stopPropagation();
     if (selectedFileName) {
       await navigator.clipboard.writeText(selectedFileName);
@@ -82,7 +82,7 @@
     showMenu = false;
   }
 
-  async function deleteFileMenu(e) {
+  async function deleteFileMenu(e?: Event) {
     e?.stopPropagation();
     // TODO: Implement delete logic
     showMenu = false;
