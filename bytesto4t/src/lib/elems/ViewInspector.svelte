@@ -15,7 +15,6 @@
 
       updateInspector();
     } catch (error) {
-      console.log("Error fetching inspector info:", error);
     }
   }
 
@@ -29,6 +28,10 @@
   onMount(() => {
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     updateInspector();
+
+    return () => {
+      window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    };
   });
 </script>
 

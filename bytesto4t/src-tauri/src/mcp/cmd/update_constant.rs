@@ -1,10 +1,11 @@
+use crate::app_data::Storage;
+use crate::bytecode_refs;
+use hlbc::types::{ConstantDef, RefGlobal};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::types::{ConstantDef, RefGlobal};
 
 #[derive(Clone)]
 pub struct UpdateConstantHandler {
@@ -21,22 +22,38 @@ struct UpdateConstantInput {
 #[async_trait]
 impl ToolHandler for UpdateConstantHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let input: UpdateConstantInput = serde_json::from_value(serde_json::to_value(arguments)
-            .map_err(|e| McpError::Validation(e.to_string()))?)
-            .map_err(|e| McpError::Validation(e.to_string()))?;
+        let input: UpdateConstantInput = serde_json::from_value(
+            serde_json::to_value(arguments).map_err(|e| McpError::Validation(e.to_string()))?,
+        )
+        .map_err(|e| McpError::Validation(e.to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
+        let mut app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
         let bytecode = app_data
             .bytecode
             .as_mut()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
-        let constants = bytecode.constants.as_mut().ok_or_else(|| McpError::Validation("No constants defined".to_string()))?;
+        let constant = ConstantDef {
+            global: RefGlobal(input.global),
+            fields: input.fields,
+        };
+        bytecode_refs::validate_constant_refs(bytecode, &constant, "updated constant")
+            .map_err(McpError::Validation)?;
+        let constants = bytecode
+            .constants
+            .as_mut()
+            .ok_or_else(|| McpError::Validation("No constants defined".to_string()))?;
         if input.index >= constants.len() {
-            return Err(McpError::Validation(format!("Constant index {} out of bounds", input.index)));
+            return Err(McpError::Validation(format!(
+                "Constant index {} out of bounds",
+                input.index
+            )));
         }
-        constants[input.index] = ConstantDef { global: RefGlobal(input.global), fields: input.fields };
+        constants[input.index] = constant;
         Ok(CallToolResult::text("ok"))
     }
 }

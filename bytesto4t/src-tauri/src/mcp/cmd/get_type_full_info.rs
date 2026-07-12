@@ -1,9 +1,9 @@
+use crate::app_data::Storage;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
 
 #[derive(Clone)]
 pub struct GetTypeFullInfoHandler {
@@ -16,11 +16,18 @@ impl ToolHandler for GetTypeFullInfoHandler {
         let index = arguments
             .get("index")
             .and_then(|v| v.as_u64())
-            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))? as usize;
+            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))?
+            as usize;
 
         let state = self.app_handle.state::<Storage>();
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_ref().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_ref()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
         if index >= bytecode.types.len() {
             return Err(McpError::Validation("Type index out of bounds".to_string()));
         }

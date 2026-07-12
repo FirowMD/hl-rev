@@ -1,11 +1,11 @@
+use crate::app_data::Storage;
+use hlbc::fmt::EnhancedFmt;
+use hlbc::opcodes::Opcode;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::fmt::EnhancedFmt;
-use hlbc::opcodes::Opcode;
 
 #[derive(Clone)]
 pub struct GetReferencesHandler {
@@ -18,20 +18,29 @@ impl ToolHandler for GetReferencesHandler {
         let index = arguments
             .get("index")
             .and_then(|v| v.as_u64())
-            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))? as usize;
+            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))?
+            as usize;
         let typ_str = arguments
             .get("typ")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'typ'".to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_ref().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_ref()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
         let out = match typ_str {
             "function" => {
                 if index >= bytecode.functions.len() {
-                    return Err(McpError::Validation("Function index out of bounds".to_string()));
+                    return Err(McpError::Validation(
+                        "Function index out of bounds".to_string(),
+                    ));
                 }
                 let findex = bytecode.functions[index].findex;
                 let mut refs = String::new();
@@ -54,13 +63,20 @@ impl ToolHandler for GetReferencesHandler {
             }
             "string" => {
                 if index >= bytecode.strings.len() {
-                    return Err(McpError::Validation("String index out of bounds".to_string()));
+                    return Err(McpError::Validation(
+                        "String index out of bounds".to_string(),
+                    ));
                 }
                 let mut refs = String::new();
                 bytecode
                     .functions
                     .iter()
-                    .flat_map(|f| f.ops.iter().enumerate().map(move |(op_idx, op)| (f, op_idx, op)))
+                    .flat_map(|f| {
+                        f.ops
+                            .iter()
+                            .enumerate()
+                            .map(move |(op_idx, op)| (f, op_idx, op))
+                    })
                     .for_each(|(f, op_idx, op)| match op {
                         Opcode::String { ptr, .. } => {
                             if ptr.0 == index {
@@ -78,7 +94,9 @@ impl ToolHandler for GetReferencesHandler {
             }
             "global" => {
                 if index >= bytecode.globals.len() {
-                    return Err(McpError::Validation("Global index out of bounds".to_string()));
+                    return Err(McpError::Validation(
+                        "Global index out of bounds".to_string(),
+                    ));
                 }
                 let mut refs = String::new();
                 if let Some(constants) = &bytecode.constants {
@@ -91,7 +109,12 @@ impl ToolHandler for GetReferencesHandler {
                 bytecode
                     .functions
                     .iter()
-                    .flat_map(|f| f.ops.iter().enumerate().map(move |(op_idx, op)| (f, op_idx, op)))
+                    .flat_map(|f| {
+                        f.ops
+                            .iter()
+                            .enumerate()
+                            .map(move |(op_idx, op)| (f, op_idx, op))
+                    })
                     .for_each(|(f, op_idx, op)| match op {
                         Opcode::GetGlobal { global, .. } | Opcode::SetGlobal { global, .. } => {
                             if global.0 == index {
@@ -107,7 +130,12 @@ impl ToolHandler for GetReferencesHandler {
                     });
                 refs
             }
-            _ => return Err(McpError::Validation(format!("Unsupported item type: {}", typ_str))),
+            _ => {
+                return Err(McpError::Validation(format!(
+                    "Unsupported item type: {}",
+                    typ_str
+                )))
+            }
         };
 
         Ok(CallToolResult::text(out))

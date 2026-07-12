@@ -6,10 +6,6 @@ pub struct AppConfig {
     pub theme: Option<String>,
     pub colorscheme: Option<String>,
     pub recent_files: Option<Vec<String>>,
-    #[serde(default, skip_serializing)]
-    pub openrouter_key: Option<String>,
-    pub ai_decompiler: Option<String>,
-    pub ai_prompt: Option<String>,
 }
 
 impl AppConfig {
@@ -19,9 +15,6 @@ impl AppConfig {
             theme: None,
             colorscheme: None,
             recent_files: None,
-            openrouter_key: None,
-            ai_decompiler: None,
-            ai_prompt: None,
         }
     }
 }

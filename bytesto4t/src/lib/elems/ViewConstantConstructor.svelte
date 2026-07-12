@@ -42,7 +42,6 @@
         global: number;
         fields: number[];
       };
-      console.log("Loaded constant for editing:", constant);
       
       // Parse the serializable constant data and populate form fields
       globalReference = String(constant.global);

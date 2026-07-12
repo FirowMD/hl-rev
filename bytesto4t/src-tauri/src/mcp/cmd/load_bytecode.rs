@@ -1,10 +1,10 @@
+use crate::app_data::Storage;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
 
 #[derive(Clone)]
 pub struct LoadBytecodeHandler {
@@ -21,7 +21,7 @@ impl ToolHandler for LoadBytecodeHandler {
 
         let state = self.app_handle.state::<Storage>();
         let mut app_data = state
-            .app_data
+            .bytecode
             .lock()
             .map_err(|e| McpError::Internal(e.to_string()))?;
 

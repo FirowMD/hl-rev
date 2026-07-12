@@ -1,11 +1,11 @@
+use crate::app_data::Storage;
+use hlbc::analysis::find_functions_using_type;
+use hlbc::types::{FunPtr, RefType};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::types::{RefType, FunPtr};
-use hlbc::analysis::find_functions_using_type;
 
 #[derive(Clone)]
 pub struct FindFunctionsUsingTypeHandler {
@@ -18,11 +18,18 @@ impl ToolHandler for FindFunctionsUsingTypeHandler {
         let type_index = arguments
             .get("type_index")
             .and_then(|v| v.as_u64())
-            .ok_or_else(|| McpError::Validation("Missing 'type_index'".to_string()))? as usize;
+            .ok_or_else(|| McpError::Validation("Missing 'type_index'".to_string()))?
+            as usize;
 
         let state = self.app_handle.state::<Storage>();
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_ref().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_ref()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
         if type_index >= bytecode.types.len() {
             return Err(McpError::Validation("Type index out of bounds".to_string()));
@@ -34,13 +41,17 @@ impl ToolHandler for FindFunctionsUsingTypeHandler {
             if let Some(func_ptr) = bytecode.safe_get_ref_fun(func_ref) {
                 match func_ptr {
                     FunPtr::Fun(function) => {
-                        let full_name = function.name(bytecode).to_string() + &function.findex.to_string();
-                        if let Some(vec_index) = bytecode.functions.iter().position(|f| f.findex == func_ref) {
+                        let full_name =
+                            function.name(bytecode).to_string() + &function.findex.to_string();
+                        if let Some(vec_index) =
+                            bytecode.functions.iter().position(|f| f.findex == func_ref)
+                        {
                             function_names.push(format!("{}@{}", full_name, vec_index));
                         }
                     }
                     FunPtr::Native(native) => {
-                        let full_name = native.name(bytecode).to_string() + &native.findex.to_string();
+                        let full_name =
+                            native.name(bytecode).to_string() + &native.findex.to_string();
                         function_names.push(format!("{}@native_{}", full_name, func_ref.0));
                     }
                 }

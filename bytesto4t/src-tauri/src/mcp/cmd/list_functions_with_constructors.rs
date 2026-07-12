@@ -1,9 +1,9 @@
+use crate::app_data::Storage;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
 
 #[derive(Clone)]
 pub struct ListFunctionsWithConstructorsHandler {
@@ -14,8 +14,14 @@ pub struct ListFunctionsWithConstructorsHandler {
 impl ToolHandler for ListFunctionsWithConstructorsHandler {
     async fn call(&self, _arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
         let state = self.app_handle.state::<Storage>();
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_ref().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_ref()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
         let mut result = Vec::new();
         for (index, f) in bytecode.functions.iter().enumerate() {
@@ -29,7 +35,9 @@ impl ToolHandler for ListFunctionsWithConstructorsHandler {
                 "is_constructor": is_ctor
             }));
         }
-        Ok(CallToolResult::text(serde_json::to_string(&result).map_err(|e| McpError::Internal(e.to_string()))?))
+        Ok(CallToolResult::text(
+            serde_json::to_string(&result).map_err(|e| McpError::Internal(e.to_string()))?,
+        ))
     }
 }
 

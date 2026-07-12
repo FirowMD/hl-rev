@@ -1,11 +1,12 @@
+use crate::app_data::Storage;
+use crate::bytecode_refs;
+use hlbc::types::Type;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::BufRead;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::types::Type;
 
 #[derive(Clone)]
 pub struct ImportTypeJsonHandler {
@@ -21,17 +22,27 @@ impl ToolHandler for ImportTypeJsonHandler {
             .ok_or_else(|| McpError::Validation("Missing 'json_path'".to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_mut().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let mut app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_mut()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
-        let json_file = std::fs::File::open(json_path).map_err(|e| McpError::Internal(e.to_string()))?;
+        let json_file =
+            std::fs::File::open(json_path).map_err(|e| McpError::Internal(e.to_string()))?;
         let reader = std::io::BufReader::new(json_file);
         let json_content: String = reader
             .lines()
             .map(|line| line.map_err(|e| McpError::Internal(e.to_string())))
             .collect::<Result<Vec<_>, _>>()?
             .join("\n");
-        let ty = Type::from_json(json_content.as_str()).map_err(|e| McpError::Internal(e.to_string()))?;
+        let ty = Type::from_json(json_content.as_str())
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        bytecode_refs::validate_type_refs(bytecode, &ty, "imported type")
+            .map_err(McpError::Validation)?;
         bytecode.add_type(ty);
         Ok(CallToolResult::text("ok"))
     }

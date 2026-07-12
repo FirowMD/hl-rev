@@ -55,17 +55,23 @@
     }
   }
 
-  onMount(() => {
-    window.addEventListener("bytecode-item-selected", async (e: Event) => {
+  async function bytecodeItemSelectedHandler(e: Event) {
       const ev = e as CustomEvent<{name: string, type: string}>;
       if (ev.detail.type === "class") {
         selectedItem = ev.detail.name;
       } else {
         selectedItem = null;
       }
-    });
+  }
+
+  onMount(() => {
+    window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     
     updateSelectedItem();
+
+    return () => {
+      window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    };
   });
 </script>
 

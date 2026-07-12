@@ -1,9 +1,9 @@
+use crate::app_data::Storage;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
 
 #[derive(Clone)]
 pub struct GetBytesListHandler {
@@ -14,7 +14,10 @@ pub struct GetBytesListHandler {
 impl ToolHandler for GetBytesListHandler {
     async fn call(&self, _arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
         let state = self.app_handle.state::<Storage>();
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
         let bytecode = app_data
             .bytecode
             .as_ref()
@@ -26,8 +29,16 @@ impl ToolHandler for GetBytesListHandler {
                 for (index, &start_pos) in indices.iter().enumerate() {
                     let end_pos = indices.get(index + 1).copied().unwrap_or(bytes_data.len());
                     let byte_slice = &bytes_data[start_pos..end_pos];
-                    let hex_str = byte_slice.iter().map(|b| format!("{:02x}", b)).collect::<Vec<String>>().join(" ");
-                    let display_str = if hex_str.len() > 50 { format!("{} ... ({} bytes)", &hex_str[..50], byte_slice.len()) } else { format!("{} ({} bytes)", hex_str, byte_slice.len()) };
+                    let hex_str = byte_slice
+                        .iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let display_str = if hex_str.len() > 50 {
+                        format!("{} ... ({} bytes)", &hex_str[..50], byte_slice.len())
+                    } else {
+                        format!("{} ({} bytes)", hex_str, byte_slice.len())
+                    };
                     bytes_list.push(format!("{}@{}", display_str, index));
                 }
                 bytes_list.join("\n")

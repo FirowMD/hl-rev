@@ -24,7 +24,6 @@
     try {
       loading = true;
       error = "";
-      console.log("Fetching functions using type index:", typeIndex);
       const response = await invoke("find_functions_using_type_cmd", { typeIndex }) as string[];
       functionList = response || [];
     } catch (err) {
@@ -53,7 +52,6 @@
     const indexPart = funcIndex;
     
     if (indexPart.startsWith('native_')) {
-      console.log('Native function selected, navigation not supported:', funcName + functionIndexElement?.textContent);
       return;
     }
 

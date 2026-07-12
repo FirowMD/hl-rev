@@ -116,7 +116,6 @@
         oninput={(e) => {
           const value = parseInt(e.currentTarget.value);
           if (!isNaN(value) && value >= 0) {
-            console.log("Value:", value);
             enteredValue = value;
           }
         }}

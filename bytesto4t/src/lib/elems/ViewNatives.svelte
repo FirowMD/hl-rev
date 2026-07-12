@@ -104,13 +104,19 @@
     showMenu = false;
   }
 
-  // Dismiss menu on global click/scroll/resize
-  if (typeof window !== 'undefined') {
-    window.addEventListener('click', () => showMenu = false);
-    window.addEventListener('scroll', () => showMenu = false, true);
-    window.addEventListener('resize', () => showMenu = false, true);
-  }
-  
+  const closeMenu = () => showMenu = false;
+
+  onMount(() => {
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu, true);
+
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('resize', closeMenu, true);
+    };
+  });  
   onMount(() => {
     fetchNativeList();
   });

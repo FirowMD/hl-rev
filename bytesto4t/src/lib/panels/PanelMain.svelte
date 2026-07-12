@@ -8,7 +8,6 @@
   import ViewDecompiler from "../elems/ViewDecompiler.svelte";
   import ViewTools from "../elems/ViewTools.svelte";
   import ViewSettings from "../elems/ViewSettings.svelte";
-  import ViewAIDecompiler from "../elems/ViewAIDecompiler.svelte";
   import ViewConstructor from "../elems/ViewConstructor.svelte";
   import type { FileData } from '../elems/types';
   import { functionsRefreshKey, functionToEdit, typeToEdit, globalToEdit, nativeToEdit, constantToEdit, stringToEdit, intToEdit, floatToEdit, mainPanelTab, stringsRefreshKey, intsRefreshKey, floatsRefreshKey } from "../elems/types";
@@ -23,7 +22,6 @@
     { id: 'inspector', label: 'Inspector', component: ViewInspector },
     { id: 'disassembler', label: 'Disassembler', component: ViewDisassembler },
     { id: 'decompiler', label: 'Decompiler', component: ViewDecompiler },
-    { id: 'idecompiler', label: 'AI Decompiler', component: ViewAIDecompiler },
     { id: 'constructor', label: 'Constructor', component: ViewConstructor },
     { id: 'tools', label: 'Tools', component: ViewTools },
     { id: 'settings', label: 'Settings', component: ViewSettings }
@@ -129,7 +127,6 @@
         }
       });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Function created successfully");
     } catch (error) {
       console.error("Error creating function:", error);
       // TODO: Show user-friendly error message
@@ -151,7 +148,6 @@
         }
       });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Function updated successfully");
     } catch (error) {
       console.error("Error editing function:", error);
       // TODO: Show user-friendly error message
@@ -166,7 +162,6 @@
       await invoke("create_type", { input: detail });
       // Trigger refresh for any components that show types
       functionsRefreshKey.update(k => k + 1);
-      console.log("Type created successfully");
     } catch (error) {
       console.error("Error creating type:", error);
       // TODO: Show user-friendly error message
@@ -182,7 +177,6 @@
         input: detail
       });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Type updated successfully");
     } catch (error) {
       console.error("Error editing type:", error);
       // TODO: Show user-friendly error message
@@ -196,7 +190,6 @@
     try {
       await invoke("create_string", { input: detail });
       stringsRefreshKey.update(k => k + 1);
-      console.log("String created successfully");
     } catch (error) {
       console.error("Error creating string:", error);
       // TODO: Show user-friendly error message
@@ -212,7 +205,6 @@
         input: detail
       });
       stringsRefreshKey.update(k => k + 1);
-      console.log("String updated successfully");
     } catch (error) {
       console.error("Error editing string:", error);
       // TODO: Show user-friendly error message
@@ -226,7 +218,6 @@
     try {
       await invoke("create_int", { input: detail });
       intsRefreshKey.update(k => k + 1);
-      console.log("Int created successfully");
     } catch (error) {
       console.error("Error creating int:", error);
       // TODO: Show user-friendly error message
@@ -242,7 +233,6 @@
         input: detail
       });
       intsRefreshKey.update(k => k + 1);
-      console.log("Int updated successfully");
     } catch (error) {
       console.error("Error editing int:", error);
       // TODO: Show user-friendly error message
@@ -256,7 +246,6 @@
     try {
       await invoke("create_float", { input: detail });
       floatsRefreshKey.update(k => k + 1);
-      console.log("Float created successfully");
     } catch (error) {
       console.error("Error creating float:", error);
       // TODO: Show user-friendly error message
@@ -272,7 +261,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
       input: detail
     });
     floatsRefreshKey.update(k => k + 1);
-    console.log("Float updated successfully");
   } catch (error) {
     console.error("Error editing float:", error);
     // TODO: Show user-friendly error message
@@ -286,7 +274,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
     try {
       await invoke("create_global", { input: detail });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Global created successfully");
     } catch (error) {
       console.error("Error creating global:", error);
       // TODO: Show user-friendly error message
@@ -302,7 +289,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
         input: detail
       });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Global updated successfully");
     } catch (error) {
       console.error("Error editing global:", error);
       // TODO: Show user-friendly error message
@@ -316,7 +302,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
     try {
       await invoke("create_native", { input: detail });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Native created successfully");
     } catch (error) {
       console.error("Error creating native:", error);
       // TODO: Show user-friendly error message
@@ -332,7 +317,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
         input: detail
       });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Native updated successfully");
     } catch (error) {
       console.error("Error editing native:", error);
       // TODO: Show user-friendly error message
@@ -346,7 +330,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
     try {
       await invoke("create_constant", { input: detail });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Constant created successfully");
     } catch (error) {
       console.error("Error creating constant:", error);
       // TODO: Show user-friendly error message
@@ -362,7 +345,6 @@ async function handleFloatEdit(event: CustomEvent<any>) {
         input: detail
       });
       functionsRefreshKey.update(k => k + 1);
-      console.log("Constant updated successfully");
     } catch (error) {
       console.error("Error editing constant:", error);
       // TODO: Show user-friendly error message

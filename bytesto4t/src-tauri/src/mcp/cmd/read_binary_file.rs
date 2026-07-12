@@ -23,7 +23,7 @@ impl ToolHandler for ReadBinaryFileHandler {
         let target_file_path = {
             let state = self.app_handle.state::<Storage>();
             let app_data = state
-                .app_data
+                .bytecode
                 .lock()
                 .map_err(|e| McpError::Internal(e.to_string()))?;
 

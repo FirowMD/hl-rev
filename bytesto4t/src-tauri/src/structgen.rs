@@ -1,7 +1,7 @@
+use hlbc::fmt::EnhancedFmt;
+use hlbc::types::{EnumConstruct, ObjField, RefString, Type, TypeFun, TypeObj};
 use hlbc::Bytecode;
 use hlbc::Resolve;
-use hlbc::fmt::EnhancedFmt;
-use hlbc::types::{Type, TypeObj, TypeFun, ObjField, RefString, EnumConstruct};
 use std::collections::HashMap;
 
 pub struct ImHexGenerator<'a> {
@@ -17,37 +17,33 @@ pub struct ImHexField {
 }
 
 pub enum ImHexType {
-    Basic(String),  // For u8, s32, etc
-    Array(Box<ImHexType>), // For array types
-    Struct(String), // For custom struct types
+    Basic(String),            // For u8, s32, etc
+    Array(Box<ImHexType>),    // For array types
+    Struct(String),           // For custom struct types
     Nullable(Box<ImHexType>), // For nullable types
 }
 
 impl ImHexField {
     fn to_string(&self) -> String {
         match &self.typ {
-            ImHexType::Array(element_type) => {
-                match &**element_type {
-                    ImHexType::Basic(typ) => {
-                        if typ == "u8" {
-                            format!("{}* {}[]: u64", typ, self.name)
-                        } else {
-                            format!("{}* {}[]: u64", typ, self.name)
-                        }
-                    },
-                    ImHexType::Struct(typ) => format!("{}* {}[]: u64", typ, self.name),
-                    _ => format!("StDynamic* {}[]: u64", self.name)
+            ImHexType::Array(element_type) => match &**element_type {
+                ImHexType::Basic(typ) => {
+                    if typ == "u8" {
+                        format!("{}* {}[]: u64", typ, self.name)
+                    } else {
+                        format!("{}* {}[]: u64", typ, self.name)
+                    }
                 }
-            }
+                ImHexType::Struct(typ) => format!("{}* {}[]: u64", typ, self.name),
+                _ => format!("StDynamic* {}[]: u64", self.name),
+            },
             ImHexType::Basic(typ) => format!("{} {}", typ, self.name),
             ImHexType::Struct(typ) => format!("{} {}", typ, self.name),
-            ImHexType::Nullable(inner) => {
-                match &**inner {
-                    ImHexType::Basic(typ) => format!("nullable<{}> {}", typ, self.name),
-                    ImHexType::Struct(typ) => format!("nullable<{}> {}", typ, self.name),
-                    _ => format!("nullable<StDynamic> {}", self.name)
-                }
-            }
+            ImHexType::Nullable(inner) => match &**inner {
+                ImHexType::Basic(typ) => format!("nullable<{}> {}", typ, self.name),
+                ImHexType::Struct(typ) => format!("nullable<{}> {}", typ, self.name),
+                _ => format!("nullable<StDynamic> {}", self.name),
+            },
         }
     }
 }
@@ -64,7 +60,8 @@ impl<'a> ImHexGenerator<'a> {
 
     fn write_standard_types(&mut self) {
         // Add standard dynamic type struct
-        self.pattern.push_str("struct StDynamic {\n    s32* hl_type: u64;\n};\n\n");
+        self.pattern
+            .push_str("struct StDynamic {\n    s32* hl_type: u64;\n};\n\n");
 
         // Add Array structure definition with tabs and renamed padding field
         self.pattern.push_str(
@@ -74,22 +71,22 @@ impl<'a> ImHexGenerator<'a> {
             \ts32 size;\n\
             \ts32 pad;\n\
             \tStDynamic* elements[]: u64;\n\
-            };\n\n"
+            };\n\n",
         );
     }
 
     pub fn generate_pattern(&mut self, type_index: usize) -> String {
         self.pattern.clear();
         self.generated_types.clear();
-        
+
         // Write standard types first
         self.write_standard_types();
-        
+
         // Get the type from bytecode
         if let Some(typ) = self.bytecode.types.get(type_index) {
             self.generate_type(typ);
         }
-        
+
         self.pattern.clone()
     }
 
@@ -106,7 +103,9 @@ impl<'a> ImHexGenerator<'a> {
             Type::Obj(obj) => self.generate_obj_type_inner(obj, depth + 1),
             Type::Struct(obj) => self.generate_obj_type_inner(obj, depth + 1),
             // Type::Virtual { fields } => self.generate_virtual_type_inner(fields, depth + 1),
-            Type::Enum { name, constructs, .. } => self.generate_enum_type(name, constructs),
+            Type::Enum {
+                name, constructs, ..
+            } => self.generate_enum_type(name, constructs),
             Type::Fun(fun) => self.generate_fun_type(fun),
             Type::Ref(ref_type) => {
                 let target_type = self.bytecode.get(*ref_type);
@@ -122,8 +121,9 @@ impl<'a> ImHexGenerator<'a> {
     }
 
     fn generate_obj_type_inner(&mut self, obj: &TypeObj, depth: usize) {
-        let type_name = sanitize_type_name(&obj.name.display::<EnhancedFmt>(self.bytecode).to_string());
-        
+        let type_name =
+            sanitize_type_name(&obj.name.display::<EnhancedFmt>(self.bytecode).to_string());
+
         if self.generated_types.contains_key(&type_name) {
             return;
         }
@@ -145,8 +145,14 @@ impl<'a> ImHexGenerator<'a> {
         if let Some(parent_type) = &obj.super_ {
             let parent = self.bytecode.get(*parent_type);
             if let Type::Obj(parent_obj) = parent {
-                let parent_name = sanitize_type_name(&parent_obj.name.display::<EnhancedFmt>(self.bytecode).to_string());
-                self.pattern.push_str(&format!("    {} super;\n", parent_name));
+                let parent_name = sanitize_type_name(
+                    &parent_obj
+                        .name
+                        .display::<EnhancedFmt>(self.bytecode)
+                        .to_string(),
+                );
+                self.pattern
+                    .push_str(&format!("    {} super;\n", parent_name));
             }
         }
 
@@ -157,7 +163,8 @@ impl<'a> ImHexGenerator<'a> {
                 name: field_name,
                 typ: field_type,
             };
-            self.pattern.push_str(&format!("    {};\n", imhex_field.to_string()));
+            self.pattern
+                .push_str(&format!("    {};\n", imhex_field.to_string()));
         }
 
         self.pattern.push_str("};\n\n");
@@ -165,7 +172,7 @@ impl<'a> ImHexGenerator<'a> {
 
     fn generate_virtual_type_inner(&mut self, fields: &[ObjField], depth: usize) {
         let type_name = format!("Virtual_{}", self.generated_types.len());
-        
+
         if self.generated_types.contains_key(&type_name) {
             return;
         }
@@ -178,7 +185,7 @@ impl<'a> ImHexGenerator<'a> {
 
         self.pattern.push_str(&format!("struct {} {{\n", type_name));
         self.pattern.push_str("    s32* hl_type: u64;\n");
-        
+
         for field in fields {
             let field_type = self.type_to_imhex_type(self.bytecode.get(field.t));
             let field_name = field.name.display::<EnhancedFmt>(self.bytecode).to_string();
@@ -186,27 +193,30 @@ impl<'a> ImHexGenerator<'a> {
                 name: field_name,
                 typ: field_type,
             };
-            self.pattern.push_str(&format!("    {};\n", imhex_field.to_string()));
+            self.pattern
+                .push_str(&format!("    {};\n", imhex_field.to_string()));
         }
-        
+
         self.pattern.push_str("};\n\n");
     }
 
     fn generate_enum_type(&mut self, name: &RefString, constructs: &[EnumConstruct]) {
         let type_name = sanitize_type_name(&name.display::<EnhancedFmt>(self.bytecode).to_string());
-        
+
         if self.generated_types.contains_key(&type_name) {
             return;
         }
         self.generated_types.insert(type_name.clone(), true);
 
-        self.pattern.push_str(&format!("enum {}: s32 {{\n", type_name));
-        
+        self.pattern
+            .push_str(&format!("enum {}: s32 {{\n", type_name));
+
         for (i, construct) in constructs.iter().enumerate() {
             let construct_name = construct.name.display::<EnhancedFmt>(self.bytecode);
-            self.pattern.push_str(&format!("    {} = {},\n", construct_name, i));
+            self.pattern
+                .push_str(&format!("    {} = {},\n", construct_name, i));
         }
-        
+
         self.pattern.push_str("};\n\n");
     }
 
@@ -217,7 +227,7 @@ impl<'a> ImHexGenerator<'a> {
     fn generate_array_type(&mut self) {
         let type_name = format!("Array_{}", self.generated_types.len());
         self.last_array_type = type_name.clone();
-        
+
         if self.generated_types.contains_key(&type_name) {
             return;
         }
@@ -260,17 +270,21 @@ impl<'a> ImHexGenerator<'a> {
                     ImHexType::Struct(sanitize_type_name(&type_name))
                 }
             }
-            Type::Struct(obj) => ImHexType::Struct(sanitize_type_name(&obj.name.display::<EnhancedFmt>(self.bytecode).to_string())),
+            Type::Struct(obj) => ImHexType::Struct(sanitize_type_name(
+                &obj.name.display::<EnhancedFmt>(self.bytecode).to_string(),
+            )),
             Type::Ref(ref_type) => {
                 let target_type = self.bytecode.get(*ref_type);
                 self.type_to_imhex_type_inner(target_type, depth + 1)
             }
             Type::Null(ref_type) => {
                 let target_type = self.bytecode.get(*ref_type);
-                ImHexType::Nullable(Box::new(self.type_to_imhex_type_inner(target_type, depth + 1)))
+                ImHexType::Nullable(Box::new(
+                    self.type_to_imhex_type_inner(target_type, depth + 1),
+                ))
             }
             Type::Array => ImHexType::Struct(self.last_array_type.clone()),
-            _ => ImHexType::Struct("StDynamic".to_string())
+            _ => ImHexType::Struct("StDynamic".to_string()),
         }
     }
 }

@@ -1,11 +1,11 @@
+use crate::app_data::{AppItem, Storage};
+use hlbc::types::Type;
+use hlbc_decompiler::{decompile_class, decompile_function};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::{Storage, AppItem};
-use hlbc::types::Type;
-use hlbc_decompiler::{decompile_function, decompile_class};
 
 #[derive(Clone)]
 pub struct GetDecompiledInfoHandler {
@@ -25,24 +25,36 @@ impl ToolHandler for GetDecompiledInfoHandler {
             .ok_or_else(|| McpError::Validation("Missing 'typ'".to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        {
-            let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-            let app_item = AppItem { index: index_str.to_string(), typ: typ_str.to_string() };
-            app_data.selected_item = Some(app_item.clone());
-        }
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_ref().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
-        let app_item = app_data.selected_item.as_ref().unwrap().clone();
-        let index: usize = app_item.index.parse().map_err(|_| McpError::Validation("Invalid index format".to_string()))?;
+        let app_item = AppItem {
+            index: index_str.to_string(),
+            typ: typ_str.to_string(),
+        };
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_ref()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let index: usize = app_item
+            .index
+            .parse()
+            .map_err(|_| McpError::Validation("Invalid index format".to_string()))?;
 
         let out = match app_item.typ.as_str() {
             "function" => {
                 if index >= bytecode.functions.len() {
-                    return Err(McpError::Validation("Function index out of bounds".to_string()));
+                    return Err(McpError::Validation(
+                        "Function index out of bounds".to_string(),
+                    ));
                 }
                 let function = &bytecode.functions[index];
                 let decompiled = decompile_function(&bytecode, &function);
-                format!("{}", decompiled.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2)))
+                format!(
+                    "{}",
+                    decompiled.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+                )
             }
             "class" => {
                 if index >= bytecode.types.len() {
@@ -51,12 +63,21 @@ impl ToolHandler for GetDecompiledInfoHandler {
                 match &bytecode.types[index] {
                     Type::Obj(obj) => {
                         let decompiled = decompile_class(&bytecode, obj);
-                        format!("{}", decompiled.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2)))
+                        format!(
+                            "{}",
+                            decompiled
+                                .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+                        )
                     }
                     _ => return Err(McpError::Validation("Type is not an object".to_string())),
                 }
             }
-            _ => return Err(McpError::Validation(format!("Unsupported item type: {}", app_item.typ))),
+            _ => {
+                return Err(McpError::Validation(format!(
+                    "Unsupported item type: {}",
+                    app_item.typ
+                )))
+            }
         };
 
         Ok(CallToolResult::text(out))

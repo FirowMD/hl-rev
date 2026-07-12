@@ -38,7 +38,6 @@
   async function fetchGlobalToEdit(idx: number) {
     try {
       const global = await invoke<{ index?: unknown } | string | number>("get_global_full_info", { index: idx });
-      console.log("Loaded global for editing:", global);
       
       // global is a RefType, so we just need the index
       globalType = String(typeof global === "object" && global !== null && "index" in global ? global.index : global);

@@ -1,10 +1,11 @@
+use crate::app_data::Storage;
+use crate::bytecode_refs;
+use hlbc::types::RefType;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::types::RefType;
 
 #[derive(Clone)]
 pub struct UpdateGlobalHandler {
@@ -20,25 +21,38 @@ struct UpdateGlobalInput {
 #[async_trait]
 impl ToolHandler for UpdateGlobalHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let input: UpdateGlobalInput = serde_json::from_value(serde_json::to_value(arguments)
-            .map_err(|e| McpError::Validation(e.to_string()))?)
-            .map_err(|e| McpError::Validation(e.to_string()))?;
+        let input: UpdateGlobalInput = serde_json::from_value(
+            serde_json::to_value(arguments).map_err(|e| McpError::Validation(e.to_string()))?,
+        )
+        .map_err(|e| McpError::Validation(e.to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
+        let mut app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
         let bytecode = app_data
             .bytecode
             .as_mut()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
         if input.index >= bytecode.globals.len() {
-            return Err(McpError::Validation(format!("Global index {} out of bounds", input.index)));
+            return Err(McpError::Validation(format!(
+                "Global index {} out of bounds",
+                input.index
+            )));
         }
         if input.global_type >= bytecode.types.len() {
-            return Err(McpError::Validation(format!("Type index {} out of bounds", input.global_type)));
+            return Err(McpError::Validation(format!(
+                "Type index {} out of bounds",
+                input.global_type
+            )));
         }
 
-        bytecode.globals[input.index] = RefType(input.global_type);
+        let global_type = RefType(input.global_type);
+        bytecode_refs::validate_global_refs(bytecode, global_type, "updated global")
+            .map_err(McpError::Validation)?;
+        bytecode.globals[input.index] = global_type;
         Ok(CallToolResult::text("ok"))
     }
 }

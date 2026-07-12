@@ -19,7 +19,6 @@
         updateDisassembler();
       }
     } catch (error) {
-      console.log("Error fetching disassembled info:", error);
     }
   }
 
@@ -68,6 +67,10 @@
   onMount(() => {
     window.addEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
     updateDisassembler();
+
+    return () => {
+      window.removeEventListener("bytecode-item-selected", bytecodeItemSelectedHandler);
+    };
   });
 </script>
 

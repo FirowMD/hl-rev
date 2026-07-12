@@ -1,11 +1,15 @@
-use tauri::State;
-use hlbc::types::{Type, RefType, RefString, RefGlobal, RefFun, TypeFun, TypeObj, ObjField, ObjProto, EnumConstruct, Native, ConstantDef, FunPtr};
-use hlbc::fmt::EnhancedFmt;
-use hlbc::analysis::find_functions_using_type;
-use std::io::{Write, BufRead};
-use std::collections::HashMap;
 use crate::app_data::Storage;
+use crate::bytecode_refs;
 use crate::structgen;
+use hlbc::analysis::find_functions_using_type;
+use hlbc::fmt::EnhancedFmt;
+use hlbc::types::{
+    ConstantDef, EnumConstruct, FunPtr, Native, ObjField, ObjProto, RefFun, RefGlobal, RefString,
+    RefType, Type, TypeFun, TypeObj,
+};
+use std::collections::HashMap;
+use std::io::{BufRead, Write};
+use tauri::State;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct NewTypeInput {
@@ -76,14 +80,16 @@ pub struct NewFloatInput {
 
 #[tauri::command]
 pub fn get_type_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
     let types = &bytecode.types;
     let mut type_names = Vec::new();
     let mut index = 0;
     for t in types {
-        type_names.push(t.display::<EnhancedFmt>(&bytecode).to_string() +
-            "@" + &index.to_string());
+        type_names.push(t.display::<EnhancedFmt>(&bytecode).to_string() + "@" + &index.to_string());
         index += 1;
     }
 
@@ -92,8 +98,11 @@ pub fn get_type_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
 
     let new_type = match input.type_kind.as_str() {
         "void" => Type::Void,
@@ -122,7 +131,12 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
             Type::Packed(RefType(inner))
         }
         "fun" | "method" => {
-            let args = input.args.unwrap_or_default().into_iter().map(RefType).collect();
+            let args = input
+                .args
+                .unwrap_or_default()
+                .into_iter()
+                .map(RefType)
+                .collect();
             let ret = RefType(input.ret.ok_or("function type requires return type")?);
             let type_fun = TypeFun { args, ret };
             if input.type_kind == "fun" {
@@ -137,11 +151,14 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
             let name = RefString(name_idx);
             let super_ = input.super_type.map(RefType);
             let global = RefGlobal(input.global.unwrap_or(0));
-            
-            let own_fields: Result<Vec<_>, String> = input.fields.unwrap_or_default()
+
+            let own_fields: Result<Vec<_>, String> = input
+                .fields
+                .unwrap_or_default()
                 .into_iter()
                 .map(|f| {
-                    let field_name_idx: usize = f.name.parse().map_err(|_| "Invalid field name index")?;
+                    let field_name_idx: usize =
+                        f.name.parse().map_err(|_| "Invalid field name index")?;
                     Ok(ObjField {
                         name: RefString(field_name_idx),
                         t: RefType(f.field_type),
@@ -149,11 +166,14 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 })
                 .collect();
             let own_fields = own_fields?;
-            
-            let protos: Result<Vec<_>, String> = input.protos.unwrap_or_default()
+
+            let protos: Result<Vec<_>, String> = input
+                .protos
+                .unwrap_or_default()
                 .into_iter()
                 .map(|p| {
-                    let proto_name_idx: usize = p.name.parse().map_err(|_| "Invalid proto name index")?;
+                    let proto_name_idx: usize =
+                        p.name.parse().map_err(|_| "Invalid proto name index")?;
                     Ok(ObjProto {
                         name: RefString(proto_name_idx),
                         findex: RefFun(p.findex),
@@ -162,7 +182,7 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 })
                 .collect();
             let protos = protos?;
-            
+
             let type_obj = TypeObj {
                 name,
                 super_,
@@ -172,7 +192,7 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 protos,
                 bindings: HashMap::new(),
             };
-            
+
             if input.type_kind == "obj" {
                 Type::Obj(type_obj)
             } else {
@@ -184,11 +204,14 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
             let name_idx: usize = name_str.parse().map_err(|_| "Invalid name index")?;
             let name = RefString(name_idx);
             let global = RefGlobal(input.global.unwrap_or(0));
-            
-            let constructs: Result<Vec<_>, String> = input.constructs.unwrap_or_default()
+
+            let constructs: Result<Vec<_>, String> = input
+                .constructs
+                .unwrap_or_default()
                 .into_iter()
                 .map(|c| {
-                    let construct_name_idx: usize = c.name.parse().map_err(|_| "Invalid construct name index")?;
+                    let construct_name_idx: usize =
+                        c.name.parse().map_err(|_| "Invalid construct name index")?;
                     Ok(EnumConstruct {
                         name: RefString(construct_name_idx),
                         params: c.params.into_iter().map(RefType).collect(),
@@ -196,8 +219,12 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 })
                 .collect();
             let constructs = constructs?;
-            
-            Type::Enum { name, global, constructs }
+
+            Type::Enum {
+                name,
+                global,
+                constructs,
+            }
         }
         "abstract" => {
             let name_str = input.name.ok_or("abstract type requires name")?;
@@ -206,10 +233,13 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
             Type::Abstract { name }
         }
         "virtual" => {
-            let fields: Result<Vec<_>, String> = input.fields.unwrap_or_default()
+            let fields: Result<Vec<_>, String> = input
+                .fields
+                .unwrap_or_default()
                 .into_iter()
                 .map(|f| {
-                    let field_name_idx: usize = f.name.parse().map_err(|_| "Invalid field name index")?;
+                    let field_name_idx: usize =
+                        f.name.parse().map_err(|_| "Invalid field name index")?;
                     Ok(ObjField {
                         name: RefString(field_name_idx),
                         t: RefType(f.field_type),
@@ -217,21 +247,29 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 })
                 .collect();
             let fields = fields?;
-            
+
             Type::Virtual { fields }
         }
         _ => return Err(format!("Unknown type kind: {}", input.type_kind)),
     };
 
+    bytecode_refs::validate_type_refs(bytecode, &new_type, "new type")?;
     bytecode.types.push(new_type);
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+pub fn update_type(
+    index: usize,
+    input: NewTypeInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.types.len() {
         return Err(format!("Type index {} out of bounds", index));
     }
@@ -263,7 +301,12 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
             Type::Packed(RefType(inner))
         }
         "fun" | "method" => {
-            let args = input.args.unwrap_or_default().into_iter().map(RefType).collect();
+            let args = input
+                .args
+                .unwrap_or_default()
+                .into_iter()
+                .map(RefType)
+                .collect();
             let ret = RefType(input.ret.ok_or("function type requires return type")?);
             let type_fun = TypeFun { args, ret };
             if input.type_kind == "fun" {
@@ -278,11 +321,14 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
             let name = RefString(name_idx);
             let super_ = input.super_type.map(RefType);
             let global = RefGlobal(input.global.unwrap_or(0));
-            
-            let own_fields: Result<Vec<_>, String> = input.fields.unwrap_or_default()
+
+            let own_fields: Result<Vec<_>, String> = input
+                .fields
+                .unwrap_or_default()
                 .into_iter()
                 .map(|f| {
-                    let field_name_idx: usize = f.name.parse().map_err(|_| "Invalid field name index")?;
+                    let field_name_idx: usize =
+                        f.name.parse().map_err(|_| "Invalid field name index")?;
                     Ok(ObjField {
                         name: RefString(field_name_idx),
                         t: RefType(f.field_type),
@@ -290,11 +336,14 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
                 })
                 .collect();
             let own_fields = own_fields?;
-            
-            let protos: Result<Vec<_>, String> = input.protos.unwrap_or_default()
+
+            let protos: Result<Vec<_>, String> = input
+                .protos
+                .unwrap_or_default()
                 .into_iter()
                 .map(|p| {
-                    let proto_name_idx: usize = p.name.parse().map_err(|_| "Invalid proto name index")?;
+                    let proto_name_idx: usize =
+                        p.name.parse().map_err(|_| "Invalid proto name index")?;
                     Ok(ObjProto {
                         name: RefString(proto_name_idx),
                         findex: RefFun(p.findex),
@@ -303,7 +352,7 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
                 })
                 .collect();
             let protos = protos?;
-            
+
             let type_obj = TypeObj {
                 name,
                 super_,
@@ -313,7 +362,7 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
                 protos,
                 bindings: HashMap::new(),
             };
-            
+
             if input.type_kind == "obj" {
                 Type::Obj(type_obj)
             } else {
@@ -325,11 +374,14 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
             let name_idx: usize = name_str.parse().map_err(|_| "Invalid name index")?;
             let name = RefString(name_idx);
             let global = RefGlobal(input.global.unwrap_or(0));
-            
-            let constructs: Result<Vec<_>, String> = input.constructs.unwrap_or_default()
+
+            let constructs: Result<Vec<_>, String> = input
+                .constructs
+                .unwrap_or_default()
                 .into_iter()
                 .map(|c| {
-                    let construct_name_idx: usize = c.name.parse().map_err(|_| "Invalid construct name index")?;
+                    let construct_name_idx: usize =
+                        c.name.parse().map_err(|_| "Invalid construct name index")?;
                     Ok(EnumConstruct {
                         name: RefString(construct_name_idx),
                         params: c.params.into_iter().map(RefType).collect(),
@@ -337,8 +389,12 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
                 })
                 .collect();
             let constructs = constructs?;
-            
-            Type::Enum { name, global, constructs }
+
+            Type::Enum {
+                name,
+                global,
+                constructs,
+            }
         }
         "abstract" => {
             let name_str = input.name.ok_or("abstract type requires name")?;
@@ -347,10 +403,13 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
             Type::Abstract { name }
         }
         "virtual" => {
-            let fields: Result<Vec<_>, String> = input.fields.unwrap_or_default()
+            let fields: Result<Vec<_>, String> = input
+                .fields
+                .unwrap_or_default()
                 .into_iter()
                 .map(|f| {
-                    let field_name_idx: usize = f.name.parse().map_err(|_| "Invalid field name index")?;
+                    let field_name_idx: usize =
+                        f.name.parse().map_err(|_| "Invalid field name index")?;
                     Ok(ObjField {
                         name: RefString(field_name_idx),
                         t: RefType(f.field_type),
@@ -358,60 +417,84 @@ pub fn update_type(index: usize, input: NewTypeInput, app_data: State<Storage>) 
                 })
                 .collect();
             let fields = fields?;
-            
+
             Type::Virtual { fields }
         }
         _ => return Err(format!("Unknown type kind: {}", input.type_kind)),
     };
 
+    bytecode_refs::validate_type_refs(bytecode, &updated_type, "updated type")?;
     bytecode.types[index] = updated_type;
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_type(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.types.len() {
         return Err(format!("Type index {} out of bounds", index));
     }
-    
+    bytecode_refs::ensure_tail_delete(
+        "Type",
+        index,
+        bytecode.types.len(),
+        bytecode_refs::type_references(bytecode, index),
+    )?;
     bytecode.types.remove(index);
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_type_full_info(index: usize, app_data: State<Storage>) -> Result<Type, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.types.len() {
         return Err(format!("Type index {} out of bounds", index));
     }
-    
+
     Ok(bytecode.types[index].clone())
 }
 
 #[tauri::command]
 pub fn import_type_json(json_path: &str, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
     let json_file = std::fs::File::open(json_path).map_err(|e| e.to_string())?;
     let reader = std::io::BufReader::new(json_file);
-    let json_content: String = reader.lines()
+    let json_content: String = reader
+        .lines()
         .map(|line| line.map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?
         .join("\n");
     let ty = Type::from_json(json_content.as_str()).map_err(|e| e.to_string())?;
+    bytecode_refs::validate_type_refs(bytecode, &ty, "imported type")?;
     bytecode.add_type(ty);
     Ok(())
 }
 
 #[tauri::command]
-pub fn export_type_json(type_index: &str, file_path: &str, app_data: State<Storage>) -> Result<(), String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+pub fn export_type_json(
+    type_index: &str,
+    file_path: &str,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
     let types = &bytecode.types;
     let index: usize = type_index.parse().map_err(|_| "Invalid index format")?;
 
@@ -429,9 +512,15 @@ pub fn export_type_json(type_index: &str, file_path: &str, app_data: State<Stora
 
 #[tauri::command]
 pub fn generate_imhex_pattern(app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let app_item = app_data.selected_item.as_ref().ok_or("No item selected")?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
+    let app_item = {
+        let ui = app_data.ui.lock().map_err(|e| e.to_string())?;
+        ui.selected_item.clone().ok_or("No item selected")?
+    };
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
 
     match app_item.typ.as_str() {
         "class" => {
@@ -439,350 +528,512 @@ pub fn generate_imhex_pattern(app_data: State<Storage>) -> Result<String, String
             if index >= bytecode.types.len() {
                 return Err("Type index out of bounds".to_string());
             }
-            
+
             Ok(structgen::generate_imhex_pattern(bytecode, index))
-        },
-        _ => Err(format!("Cannot generate ImHex pattern for item type: {}", app_item.typ))
+        }
+        _ => Err(format!(
+            "Cannot generate ImHex pattern for item type: {}",
+            app_item.typ
+        )),
     }
 }
 
 #[tauri::command]
 pub fn create_global(input: NewGlobalInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
-    bytecode.globals.push(RefType(input.global_type));
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
+    let global_type = RefType(input.global_type);
+    bytecode_refs::validate_global_refs(bytecode, global_type, "new global")?;
+    bytecode.globals.push(global_type);
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_global(index: usize, input: NewGlobalInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+pub fn update_global(
+    index: usize,
+    input: NewGlobalInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.globals.len() {
         return Err(format!("Global index {} out of bounds", index));
     }
-    
-    bytecode.globals[index] = RefType(input.global_type);
+
+    let global_type = RefType(input.global_type);
+    bytecode_refs::validate_global_refs(bytecode, global_type, "updated global")?;
+    bytecode.globals[index] = global_type;
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_global(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.globals.len() {
         return Err(format!("Global index {} out of bounds", index));
     }
-    
+    bytecode_refs::ensure_tail_delete(
+        "Global",
+        index,
+        bytecode.globals.len(),
+        bytecode_refs::global_references(bytecode, index),
+    )?;
     bytecode.globals.remove(index);
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_global_full_info(index: usize, app_data: State<Storage>) -> Result<RefType, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.globals.len() {
         return Err(format!("Global index {} out of bounds", index));
     }
-    
+
     Ok(bytecode.globals[index])
 }
 
 #[tauri::command]
 pub fn create_native(input: NewNativeInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     let lib_idx: usize = input.lib.parse().map_err(|_| "Invalid lib string index")?;
-    let name_idx: usize = input.name.parse().map_err(|_| "Invalid name string index")?;
-    
+    let name_idx: usize = input
+        .name
+        .parse()
+        .map_err(|_| "Invalid name string index")?;
+
     let lib = RefString(lib_idx);
     let name = RefString(name_idx);
     let t = RefType(input.signature_type);
     let findex = RefFun(input.findex.unwrap_or(bytecode.natives.len()));
-    
-    bytecode.natives.push(Native { lib, name, t, findex });
+    let native = Native {
+        lib,
+        name,
+        t,
+        findex,
+    };
+    bytecode_refs::validate_native_refs(bytecode, &native, "new native")?;
+    bytecode.natives.push(native);
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_native(index: usize, input: NewNativeInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+pub fn update_native(
+    index: usize,
+    input: NewNativeInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.natives.len() {
         return Err(format!("Native index {} out of bounds", index));
     }
-    
+
     let lib_idx: usize = input.lib.parse().map_err(|_| "Invalid lib string index")?;
-    let name_idx: usize = input.name.parse().map_err(|_| "Invalid name string index")?;
-    
+    let name_idx: usize = input
+        .name
+        .parse()
+        .map_err(|_| "Invalid name string index")?;
+
     let lib = RefString(lib_idx);
     let name = RefString(name_idx);
     let t = RefType(input.signature_type);
     let findex = RefFun(input.findex.unwrap_or(bytecode.natives[index].findex.0));
-    
-    bytecode.natives[index] = Native { lib, name, t, findex };
+    let native = Native {
+        lib,
+        name,
+        t,
+        findex,
+    };
+    bytecode_refs::validate_native_refs(bytecode, &native, "updated native")?;
+    bytecode.natives[index] = native;
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_native(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.natives.len() {
         return Err(format!("Native index {} out of bounds", index));
     }
-    
+    let findex = bytecode.natives[index].findex;
+    bytecode_refs::ensure_tail_delete(
+        "Native",
+        index,
+        bytecode.natives.len(),
+        bytecode_refs::function_references(bytecode, findex),
+    )?;
     bytecode.natives.remove(index);
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_native_full_info(index: usize, app_data: State<Storage>) -> Result<Native, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.natives.len() {
         return Err(format!("Native index {} out of bounds", index));
     }
-    
+
     Ok(bytecode.natives[index].clone())
 }
 
 #[tauri::command]
 pub fn create_constant(input: NewConstantInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
-    let constants = bytecode.constants.get_or_insert_with(Vec::new);
-    
-    constants.push(ConstantDef {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
+    let constant = ConstantDef {
         global: RefGlobal(input.global),
         fields: input.fields,
-    });
-    
+    };
+    bytecode_refs::validate_constant_refs(bytecode, &constant, "new constant")?;
+    let constants = bytecode.constants.get_or_insert_with(Vec::new);
+    constants.push(constant);
+
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_constant(index: usize, input: NewConstantInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
-    let constants = bytecode.constants.as_mut().ok_or("No constants defined")?;
-    
-    if index >= constants.len() {
-        return Err(format!("Constant index {} out of bounds", index));
-    }
-    
-    constants[index] = ConstantDef {
+pub fn update_constant(
+    index: usize,
+    input: NewConstantInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
+    let constant = ConstantDef {
         global: RefGlobal(input.global),
         fields: input.fields,
     };
-    
+    bytecode_refs::validate_constant_refs(bytecode, &constant, "updated constant")?;
+    let constants = bytecode.constants.as_mut().ok_or("No constants defined")?;
+
+    if index >= constants.len() {
+        return Err(format!("Constant index {} out of bounds", index));
+    }
+
+    constants[index] = constant;
+
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_constant(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     let constants = bytecode.constants.as_mut().ok_or("No constants defined")?;
-    
+
     if index >= constants.len() {
         return Err(format!("Constant index {} out of bounds", index));
     }
-    
+
     constants.remove(index);
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_constant_full_info(index: usize, app_data: State<Storage>) -> Result<ConstantDef, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+pub fn get_constant_full_info(
+    index: usize,
+    app_data: State<Storage>,
+) -> Result<ConstantDef, String> {
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     let constants = bytecode.constants.as_ref().ok_or("No constants defined")?;
-    
+
     if index >= constants.len() {
         return Err(format!("Constant index {} out of bounds", index));
     }
-    
+
     Ok(constants[index].clone())
 }
 
 #[tauri::command]
 pub fn create_string(input: NewStringInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     bytecode.strings.push(hlbc::Str::from(input.value));
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_string(index: usize, input: NewStringInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+pub fn update_string(
+    index: usize,
+    input: NewStringInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.strings.len() {
         return Err(format!("String index {} out of bounds", index));
     }
-    
+
     bytecode.strings[index] = hlbc::Str::from(input.value);
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_string(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.strings.len() {
         return Err(format!("String index {} out of bounds", index));
     }
-    
+
     if index == 0 {
         return Err("Cannot delete reserved string at index 0".to_string());
     }
-    
+    bytecode_refs::ensure_tail_delete(
+        "String",
+        index,
+        bytecode.strings.len(),
+        bytecode_refs::string_references(bytecode, index),
+    )?;
     bytecode.strings.remove(index);
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_string_full_info(index: usize, app_data: State<Storage>) -> Result<String, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.strings.len() {
         return Err(format!("String index {} out of bounds", index));
     }
-    
+
     Ok(bytecode.strings[index].to_string())
 }
 
 #[tauri::command]
 pub fn create_int(input: NewIntInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     bytecode.ints.push(input.value);
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_int(index: usize, input: NewIntInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+pub fn update_int(
+    index: usize,
+    input: NewIntInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.ints.len() {
         return Err(format!("Int index {} out of bounds", index));
     }
-    
+
     bytecode.ints[index] = input.value;
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_int(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.ints.len() {
         return Err(format!("Int index {} out of bounds", index));
     }
-    
+    bytecode_refs::ensure_tail_delete(
+        "Int",
+        index,
+        bytecode.ints.len(),
+        bytecode_refs::int_references(bytecode, index),
+    )?;
     bytecode.ints.remove(index);
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_int_full_info(index: usize, app_data: State<Storage>) -> Result<i32, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.ints.len() {
         return Err(format!("Int index {} out of bounds", index));
     }
-    
+
     Ok(bytecode.ints[index])
 }
 
 #[tauri::command]
 pub fn create_float(input: NewFloatInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     bytecode.floats.push(input.value);
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_float(index: usize, input: NewFloatInput, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+pub fn update_float(
+    index: usize,
+    input: NewFloatInput,
+    app_data: State<Storage>,
+) -> Result<(), String> {
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.floats.len() {
         return Err(format!("Float index {} out of bounds", index));
     }
-    
+
     bytecode.floats[index] = input.value;
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_float(index: usize, app_data: State<Storage>) -> Result<(), String> {
-    let mut app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_mut().ok_or("bytecode not loaded")?;
-    
+    let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_mut()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.floats.len() {
         return Err(format!("Float index {} out of bounds", index));
     }
-    
+    bytecode_refs::ensure_tail_delete(
+        "Float",
+        index,
+        bytecode.floats.len(),
+        bytecode_refs::float_references(bytecode, index),
+    )?;
     bytecode.floats.remove(index);
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_float_full_info(index: usize, app_data: State<Storage>) -> Result<f64, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if index >= bytecode.floats.len() {
         return Err(format!("Float index {} out of bounds", index));
     }
-    
+
     Ok(bytecode.floats[index])
 }
 
 #[tauri::command]
-pub fn find_functions_using_type_cmd(type_index: usize, app_data: State<Storage>) -> Result<Vec<String>, String> {
-    let app_data = app_data.app_data.lock().map_err(|e| e.to_string())?;
-    let bytecode = app_data.bytecode.as_ref().ok_or("bytecode not loaded")?;
-    
+pub fn find_functions_using_type_cmd(
+    type_index: usize,
+    app_data: State<Storage>,
+) -> Result<Vec<String>, String> {
+    let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
+    let bytecode = bytecode_store
+        .bytecode
+        .as_ref()
+        .ok_or("bytecode not loaded")?;
+
     if type_index >= bytecode.types.len() {
         return Err(format!("Type index {} out of bounds", type_index));
     }
-    
+
     let target_type = RefType(type_index);
     let function_refs = find_functions_using_type(bytecode, target_type);
-    
+
     let mut function_names = Vec::new();
     for func_ref in function_refs {
         if let Some(func_ptr) = bytecode.safe_get_ref_fun(func_ref) {
             match func_ptr {
                 FunPtr::Fun(function) => {
-                    let full_name = function.name(bytecode).to_string() + &function.findex.to_string();
-                    if let Some(vec_index) = bytecode.functions.iter().position(|f| f.findex == func_ref) {
+                    let full_name =
+                        function.name(bytecode).to_string() + &function.findex.to_string();
+                    if let Some(vec_index) =
+                        bytecode.functions.iter().position(|f| f.findex == func_ref)
+                    {
                         function_names.push(format!("{}@{}", full_name, vec_index));
                     }
                 }
@@ -793,6 +1044,6 @@ pub fn find_functions_using_type_cmd(type_index: usize, app_data: State<Storage>
             }
         }
     }
-    
+
     Ok(function_names)
 }

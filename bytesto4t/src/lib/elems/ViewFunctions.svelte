@@ -50,16 +50,12 @@
     if (functionIndexElement !== null && functionIndexElement.textContent !== null) {
       funcIndex = functionIndexElement.textContent.substring(1);
     }
-
-    console.log("findex: `" + funcIndex + "`");
     await invoke("set_selected_item", {
       appItem: {
         index: funcIndex,
         typ: "function"
       }
     });
-
-    console.log("fullName: `" + funcName + functionIndexElement?.textContent + "`");
     await invoke("add_history_item", {
       item: {
         name: funcName + functionIndexElement?.textContent,
@@ -67,8 +63,6 @@
         timestamp: new Date().toISOString()
       }
     });
-
-    console.log("fullName: `" + funcName + functionIndexElement?.textContent + "`");
     const ev = new CustomEvent("bytecode-item-selected", {
       detail: {
         name: funcName + functionIndexElement?.textContent,
@@ -142,12 +136,19 @@
     await fetchFunctionList();
     showMenu = false;
   }
-  // Dismiss menu on global click/scroll/resize
-  if (typeof window !== 'undefined') {
-    window.addEventListener('click', () => showMenu = false);
-    window.addEventListener('scroll', () => showMenu = false, true);
-    window.addEventListener('resize', () => showMenu = false, true);
-  }
+  const closeMenu = () => showMenu = false;
+
+  onMount(() => {
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu, true);
+
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('resize', closeMenu, true);
+    };
+  });
 </script>
 
 <div class="h-full">

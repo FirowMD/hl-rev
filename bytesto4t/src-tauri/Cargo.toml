@@ -32,5 +32,3 @@ tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros"] }
 anyhow = "1.0.103"
 prism-mcp-rs = { version = "2.0.1", features = ["stdio"] }
 async-trait = "0.1.89"
-keyring = { version = "3", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
-reqwest = { version = "0.13", features = ["json"] }

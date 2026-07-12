@@ -783,7 +783,6 @@
               <button
                 class="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium"
                 onclick={() => {
-                  console.log("📖 Docs button clicked!");
                   openOpcodeDocumentation();
                 }}
                 title="View opcode documentation"

@@ -9,21 +9,9 @@ export interface HistoryItem {
   timestamp: string;
 }
 
-export interface AIDecompilation {
-  function_name: string;
-  result: string;
-  timestamp: string;
-  model: string;
-}
-
 export interface BytecodeItemSelectedEvent {
   name: string;
   type: string;
-}
-
-export interface AIDecompilationReplacedEvent {
-  functionName: string;
-  result: string;
 }
 
 export interface FileStatus {
@@ -39,8 +27,6 @@ export interface Reference {
 declare global {
   interface WindowEventMap {
     'bytecode-item-selected': CustomEvent<BytecodeItemSelectedEvent>;
-    'ai-decompilation-replaced': CustomEvent<AIDecompilationReplacedEvent>;
-    'ai-decompilation-removed': CustomEvent<{functionName: string}>;
   }
 }
 import { writable } from 'svelte/store';

@@ -1,11 +1,11 @@
+use crate::app_data::Storage;
+use hlbc::fmt::EnhancedFmt;
+use hlbc::Resolve;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::fmt::EnhancedFmt;
-use hlbc::Resolve;
 
 #[derive(Clone)]
 pub struct GetGlobalListHandler {
@@ -16,7 +16,10 @@ pub struct GetGlobalListHandler {
 impl ToolHandler for GetGlobalListHandler {
     async fn call(&self, _arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
         let state = self.app_handle.state::<Storage>();
-        let app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
+        let app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
         let bytecode = app_data
             .bytecode
             .as_ref()
@@ -25,7 +28,8 @@ impl ToolHandler for GetGlobalListHandler {
         let mut globals = Vec::new();
         for (index, g) in bytecode.globals.iter().enumerate() {
             let ty = bytecode.get(*g);
-            globals.push(ty.display::<EnhancedFmt>(&bytecode).to_string() + "@" + &index.to_string());
+            globals
+                .push(ty.display::<EnhancedFmt>(&bytecode).to_string() + "@" + &index.to_string());
         }
 
         Ok(CallToolResult::text(globals.join("\n")))

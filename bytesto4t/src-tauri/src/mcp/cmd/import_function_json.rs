@@ -1,11 +1,12 @@
+use crate::app_data::Storage;
+use crate::bytecode_refs;
+use hlbc::types::Function;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::BufRead;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
-use hlbc::types::Function;
 
 #[derive(Clone)]
 pub struct ImportFunctionJsonHandler {
@@ -21,17 +22,27 @@ impl ToolHandler for ImportFunctionJsonHandler {
             .ok_or_else(|| McpError::Validation("Missing 'json_path'".to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
-        let bytecode = app_data.bytecode.as_mut().ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
+        let mut app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        let bytecode = app_data
+            .bytecode
+            .as_mut()
+            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
-        let json_file = std::fs::File::open(json_path).map_err(|e| McpError::Internal(e.to_string()))?;
+        let json_file =
+            std::fs::File::open(json_path).map_err(|e| McpError::Internal(e.to_string()))?;
         let reader = std::io::BufReader::new(json_file);
         let json_content: String = reader
             .lines()
             .map(|line| line.map_err(|e| McpError::Internal(e.to_string())))
             .collect::<Result<Vec<_>, _>>()?
             .join("\n");
-        let function = Function::from_json(json_content.as_str()).map_err(|e| McpError::Internal(e.to_string()))?;
+        let function = Function::from_json(json_content.as_str())
+            .map_err(|e| McpError::Internal(e.to_string()))?;
+        bytecode_refs::validate_function_refs(bytecode, &function, "imported function", true)
+            .map_err(McpError::Validation)?;
         bytecode.add_function(function);
         Ok(CallToolResult::text("ok"))
     }

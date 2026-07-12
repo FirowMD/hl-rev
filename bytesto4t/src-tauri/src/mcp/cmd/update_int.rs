@@ -1,9 +1,9 @@
+use crate::app_data::Storage;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
-use crate::app_data::Storage;
 
 #[derive(Clone)]
 pub struct UpdateIntHandler {
@@ -19,19 +19,26 @@ struct UpdateIntInput {
 #[async_trait]
 impl ToolHandler for UpdateIntHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let input: UpdateIntInput = serde_json::from_value(serde_json::to_value(arguments)
-            .map_err(|e| McpError::Validation(e.to_string()))?)
-            .map_err(|e| McpError::Validation(e.to_string()))?;
+        let input: UpdateIntInput = serde_json::from_value(
+            serde_json::to_value(arguments).map_err(|e| McpError::Validation(e.to_string()))?,
+        )
+        .map_err(|e| McpError::Validation(e.to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let mut app_data = state.app_data.lock().map_err(|e| McpError::Internal(e.to_string()))?;
+        let mut app_data = state
+            .bytecode
+            .lock()
+            .map_err(|e| McpError::Internal(e.to_string()))?;
         let bytecode = app_data
             .bytecode
             .as_mut()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
         if input.index >= bytecode.ints.len() {
-            return Err(McpError::Validation(format!("Int index {} out of bounds", input.index)));
+            return Err(McpError::Validation(format!(
+                "Int index {} out of bounds",
+                input.index
+            )));
         }
 
         bytecode.ints[input.index] = input.value;

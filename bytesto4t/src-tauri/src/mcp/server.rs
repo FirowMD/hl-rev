@@ -1,6 +1,6 @@
+use crate::mcp::cmd;
 use prism_mcp_rs::prelude::*;
 use tauri::AppHandle;
-use crate::mcp::cmd;
 
 pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     let mut server = McpServer::new("bytesto4t".to_string(), "0.2.3".to_string());
@@ -21,7 +21,7 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::get_decompiled_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_disassembler_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_references::register(&mut server, app_handle.clone()).await?;
-    
+
     cmd::read_binary_file::register(&mut server, app_handle.clone()).await?;
 
     cmd::get_file_list::register(&mut server, app_handle.clone()).await?;
@@ -72,6 +72,8 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::generate_imhex_pattern::register(&mut server, app_handle.clone()).await?;
     cmd::save_bytecode::register(&mut server, app_handle.clone()).await?;
 
-    server.start(prism_mcp_rs::transport::stdio::StdioServerTransport::new()).await?;
+    server
+        .start(prism_mcp_rs::transport::stdio::StdioServerTransport::new())
+        .await?;
     Ok(())
 }
