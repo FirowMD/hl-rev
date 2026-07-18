@@ -7,10 +7,6 @@ import std.mem;
 
 u8 gHasDebug = 0;
 u8 gVersion = 0;
-u32 gTypeNumber = 0;
-u32 gTypeCurrent = 0;
-u32 gFunctionNumber = 0;
-u32 gFunctionCurrent = 0;
 
 struct HlbcVar {
     u8 b = std::mem::read_unsigned(addressof(this), 1) [[hidden]];
@@ -37,25 +33,52 @@ struct HlbcVar {
     }
 };
 
-struct HlbcRefString {
-    HlbcVar data;
+fn get_hlbc_index_size(u64 addr) {
+    u8 b = std::mem::read_unsigned(addr, 1);
+    if ((b & 0x80) == 0) {
+        return 1;
+    } else if ((b & 0x40) == 0) {
+        return 2;
+    } else {
+        return 4;
+    }
 };
 
-struct HlbcRefGlobal {
-    HlbcVar data;
+fn read_hlbc_index(u64 addr) {
+    u8 b = std::mem::read_unsigned(addr, 1);
+    if ((b & 0x80) == 0) {
+        return s32(b & 0x7F);
+    }
+
+    s32 value;
+    if ((b & 0x40) == 0) {
+        value = std::mem::read_unsigned(addr + 1, 1) | ((b & 0x1F) << 8);
+    } else {
+        value = ((b & 0x1F) << 24)
+            | (std::mem::read_unsigned(addr + 1, 1) << 16)
+            | (std::mem::read_unsigned(addr + 2, 1) << 8)
+            | std::mem::read_unsigned(addr + 3, 1);
+    }
+
+    if ((b & 0x20) != 0) {
+        value = -value;
+    }
+    return value;
 };
 
-struct HlbcRefType {
-    HlbcVar data;
+struct HlbcRef {
+    u8 seq[get_hlbc_index_size(addressof(this))];
+} [[sealed, format("format_hlbc_ref")]];
+
+fn format_hlbc_ref(HlbcRef index) {
+    return std::format("{}", read_hlbc_index(addressof(index)));
 };
 
-struct HlbcRefFun {
-    HlbcVar data;
-};
-
-struct HlbcRefField {
-    HlbcVar data;
-};
+using HlbcRefString = HlbcRef;
+using HlbcRefGlobal = HlbcRef;
+using HlbcRefType = HlbcRef;
+using HlbcRefFun = HlbcRef;
+using HlbcRefField = HlbcRef;
 
 struct HlbcObjField {
     HlbcRefString name;
@@ -116,8 +139,6 @@ struct HlbcNative {
 };
 
 struct HlbcType {
-    gTypeCurrent += 1;
-    std::print("Class: {}/{}", gTypeCurrent, gTypeNumber);
     u8 byte;
     if (byte == 10) {
         HlbcTypeFun typefun;
@@ -525,46 +546,25 @@ struct HlbcOpcode {
     }
 };
 
-struct HlbcFunctionDebug {
-    s32 currfile = -1 [[export]];
-    u32 cnt = 0 [[export]];
-    u32 size = 0 [[export]];
-};
-
-fn setup_function_debug(u64 addr, u32 nops, ref HlbcFunctionDebug fdebug) {
+fn get_function_debug_size(u64 addr, u32 nops) {
     u32 i = 0;
     u8 c;
-    s32 currfile = -1;
-    u32 cnt = 0;
-    u32 offset = 0;
+    u32 size = 0;
     while (i < nops) {
-        c = std::mem::read_unsigned(addr, 1);
-        addr += 1;
-        offset += 1;
-        if ((c & 1) != 0)
-        {
-            c >>= 1;
-            currfile = ((c << 8) | std::mem::read_unsigned(addr, 1));
-            addr += 1;
-            offset += 1;
+        c = std::mem::read_unsigned(addr + size, 1);
+        size += 1;
+        if ((c & 1) != 0) {
+            size += 1;
         } else if ((c & 2) != 0) {
-            cnt = (c >> 2) & 15;
-            while (cnt > 0) {
-                cnt -= 1;
-                i += 1;
-            }
+            i += (c >> 2) & 15;
         } else if ((c & 4) != 0) {
             i += 1;
         } else {
-            addr += 2;
-            offset += 2;
+            size += 2;
             i += 1;
         }
     }
-
-    fdebug.currfile = currfile;
-    fdebug.cnt = cnt;
-    fdebug.size = offset;
+    return size;
 };
 
 struct HlbcAssign {
@@ -573,8 +573,6 @@ struct HlbcAssign {
 };
 
 struct HlbcFunction {
-    gFunctionCurrent += 1;
-    std::print("Function: {}/{}", gFunctionCurrent, gFunctionNumber);
     HlbcRefType type;
     HlbcRefFun findex;
     HlbcVar nregs;
@@ -586,9 +584,7 @@ struct HlbcFunction {
         HlbcOpcode ops[nops.value];
     }
     if (gHasDebug != 0) {
-        HlbcFunctionDebug fdebug;
-        setup_function_debug($, nops.value, fdebug);
-        $ += fdebug.size;
+        $ += get_function_debug_size($, nops.value);
     }
     if ((gHasDebug != 0) && (gVersion >= 3)) {
         HlbcVar nassigns;
@@ -646,7 +642,6 @@ struct Hlbc {
         HlbcVar file_sizes[ndebug_files.value];
         gHasDebug = 1;
     }
-    gTypeNumber = ntypes.value;
     if (ntypes.value > 0) {
         HlbcType types[ntypes.value];
     }
@@ -656,7 +651,6 @@ struct Hlbc {
     if (nnatives.value > 0) {
         HlbcNative natives[nnatives.value];
     }
-    gFunctionNumber = nfunctions.value;
     if (nfunctions.value > 0) {
         HlbcFunction functions[nfunctions.value];
     }
