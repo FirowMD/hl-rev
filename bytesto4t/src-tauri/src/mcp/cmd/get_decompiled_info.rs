@@ -39,10 +39,11 @@ impl ToolHandler for GetDecompiledInfoHandler {
                     ));
                 }
                 let function = &bytecode.functions[index];
-                let decompiled = decompile_function(&bytecode, &function);
+                let decompiled = decompile_function(&bytecode, &function)
+                    .map_err(|e| McpError::Internal(e.to_string()))?;
                 format!(
                     "{}",
-                    decompiled.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+                    decompiled.value.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
                 )
             }
             "class" => {
@@ -51,10 +52,12 @@ impl ToolHandler for GetDecompiledInfoHandler {
                 }
                 match &bytecode.types[index] {
                     Type::Obj(obj) => {
-                        let decompiled = decompile_class(&bytecode, obj);
+                        let decompiled = decompile_class(&bytecode, obj)
+                            .map_err(|e| McpError::Internal(e.to_string()))?;
                         format!(
                             "{}",
                             decompiled
+                                .value
                                 .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
                         )
                     }
