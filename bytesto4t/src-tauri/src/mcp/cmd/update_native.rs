@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::{Native, RefFun, RefString, RefType, Type};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -86,11 +87,17 @@ impl ToolHandler for UpdateNativeHandler {
         let lib = RefString(lib_idx);
         let name = RefString(name_idx);
         let t = RefType(input.signature_type);
-        let findex = RefFun(
-            input
-                .findex
-                .unwrap_or(bytecode.natives[input.index].findex.0),
-        );
+        let old_findex = bytecode.natives[input.index].findex;
+        let findex = input.findex.unwrap_or(old_findex.0);
+        support::ensure_findex_in_dense_range(bytecode, findex, false)?;
+        support::ensure_findex_available(bytecode, findex, None, Some(input.index))?;
+        if findex != old_findex.0 {
+            return Err(McpError::Validation(
+                "Changing a native findex is not supported; create a replacement native instead"
+                    .to_string(),
+            ));
+        }
+        let findex = RefFun(findex);
 
         let native = Native {
             lib,
@@ -115,8 +122,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
                 "type": "object",
                 "properties": {
                     "index": {"type": "integer"},
-                    "lib": {"type": "string"},
-                    "name": {"type": "string"},
+                    "lib": {"type": "string", "description": "Decimal string-pool index"},
+                    "name": {"type": "string", "description": "Decimal string-pool index"},
                     "signature_type": {"type": "integer"},
                     "findex": {"type": "integer"}
                 },

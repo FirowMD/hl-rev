@@ -1,4 +1,5 @@
 use crate::app_data::Storage;
+use crate::mcp::cmd::support;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
@@ -13,11 +14,7 @@ pub struct RemoveConstantHandler {
 #[async_trait]
 impl ToolHandler for RemoveConstantHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let index = arguments
-            .get("index")
-            .and_then(|v| v.as_u64())
-            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))?
-            as usize;
+        let index = support::required_index(&arguments, "index")?;
 
         let state = self.app_handle.state::<Storage>();
         let mut app_data = state
@@ -38,7 +35,13 @@ impl ToolHandler for RemoveConstantHandler {
                 "Constant index out of bounds".to_string(),
             ));
         }
-        constants.remove(index);
+        let mut candidate = bytecode.clone();
+        let candidate_constants = candidate.constants.as_mut().ok_or_else(|| {
+            McpError::Internal("Constants disappeared while preparing the deletion".to_string())
+        })?;
+        candidate_constants.remove(index);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

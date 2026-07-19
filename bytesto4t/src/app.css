@@ -147,3 +147,182 @@
 .explorer-index {
     color: var(--color-tertiary-200);
 }
+
+.constructor-editor > .h-full {
+    min-height: 100%;
+    height: auto;
+    overflow: visible;
+    background: transparent;
+}
+
+.constructor-editor {
+    container-type: inline-size;
+}
+
+.constructor-editor > .h-full > .h-full {
+    min-height: 0;
+    height: auto;
+}
+
+.constructor-editor > .h-full > .h-full > :first-child {
+    padding: 0 0 0.75rem;
+    border: 0;
+    background: transparent;
+}
+
+.constructor-editor > .h-full > .h-full > :first-child > div {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.constructor-editor > .h-full > .h-full > :first-child h1 {
+    font-size: 1rem;
+    line-height: 1.4rem;
+    font-weight: 600;
+}
+
+.constructor-editor > .h-full > .h-full > :first-child p {
+    margin-top: 0.125rem;
+    color: var(--color-surface-400);
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.constructor-editor > .h-full > .h-full > :first-child .btn {
+    min-height: 2rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--color-surface-600);
+    border-radius: 0.25rem;
+    background: var(--color-surface-700);
+    color: var(--color-surface-100);
+    font-size: 0.75rem;
+}
+
+.constructor-editor > .h-full > .h-full > :first-child .btn:hover:not(:disabled) {
+    background: var(--color-surface-600);
+}
+
+.constructor-editor > .h-full > .h-full > .flex-1 {
+    padding: 0;
+    overflow: visible;
+}
+
+.constructor-editor > .h-full > .h-full > .flex-1 > div {
+    display: flex;
+    max-width: none;
+    margin-inline: 0;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.constructor-editor > .h-full > .h-full > .flex-1 > div > div {
+    margin: 0;
+    padding: 0 0 1rem;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-surface-700) 72%, transparent);
+    border-radius: 0;
+    background: transparent;
+}
+
+.constructor-editor > .h-full > .h-full > .flex-1 > div > div:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.constructor-editor > .h-full h2 {
+    margin-bottom: 0.25rem;
+    color: var(--color-surface-100);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+}
+
+.constructor-editor > .h-full h3 {
+    color: var(--color-surface-200);
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.constructor-editor > .h-full .mb-6 {
+    margin-bottom: 0.75rem;
+}
+
+.constructor-editor > .h-full .gap-6 {
+    gap: 0.75rem;
+}
+
+.constructor-editor > .h-full .input {
+    min-height: 2rem;
+    padding: 0.375rem 0.625rem;
+    border-color: var(--color-surface-700);
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--color-surface-900) 88%, black);
+    color: var(--color-surface-100);
+    font-size: 0.75rem;
+}
+
+.constructor-editor > .h-full .input:hover:not(:disabled),
+.constructor-editor > .h-full .input:focus {
+    border-color: var(--color-surface-500);
+}
+
+.constructor-editor > .h-full .btn {
+    border: 1px solid var(--color-surface-600);
+    border-radius: 0.25rem;
+    background: var(--color-surface-700);
+    color: var(--color-surface-100);
+}
+
+.constructor-editor > .h-full .btn:hover:not(:disabled) {
+    background: var(--color-surface-600);
+}
+
+.constructor-editor > .h-full .btn.bg-primary-500 {
+    border-color: color-mix(in srgb, var(--color-primary-500) 72%, var(--color-surface-600));
+    background: color-mix(in srgb, var(--color-primary-500) 74%, var(--color-surface-700));
+}
+
+.constructor-editor > .h-full .btn.bg-error-500,
+.constructor-editor > .h-full .btn.bg-red-500 {
+    border-color: var(--color-error-600);
+    background: var(--color-error-500);
+}
+
+.constructor-editor > .h-full div[class~="bg-surface-50"][class~="rounded-lg"][class~="border"] {
+    border-color: var(--color-surface-700);
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--color-surface-900) 84%, black);
+}
+
+.constructor-editor > .h-full div[class~="bg-blue-50"] {
+    color: var(--color-surface-400);
+}
+
+.constructor-editor > .h-full div[class~="bg-blue-50"] * {
+    color: inherit;
+}
+
+.constructor-editor [class~="md:grid-cols-2"],
+.constructor-editor [class~="lg:grid-cols-3"] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.constructor-editor [class~="md:col-span-2"] {
+    grid-column: auto;
+}
+
+@container (min-width: 34rem) {
+    .constructor-editor [class~="md:grid-cols-2"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .constructor-editor [class~="md:col-span-2"] {
+        grid-column: span 2 / span 2;
+    }
+}
+
+@container (min-width: 46rem) {
+    .constructor-editor [class~="lg:grid-cols-3"] {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}

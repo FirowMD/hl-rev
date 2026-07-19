@@ -1,4 +1,5 @@
 use crate::app_data::Storage;
+use crate::mcp::cmd::support;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
@@ -40,8 +41,16 @@ impl ToolHandler for UpdateStringHandler {
                 input.index
             )));
         }
+        if input.index == 0 {
+            return Err(McpError::Validation(
+                "Cannot update reserved string at index 0".to_string(),
+            ));
+        }
 
-        bytecode.strings[input.index] = hlbc::Str::from(input.value);
+        let mut candidate = bytecode.clone();
+        candidate.strings[input.index] = hlbc::Str::from(input.value);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

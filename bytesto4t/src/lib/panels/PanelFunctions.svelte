@@ -15,8 +15,7 @@
 </script>
 
 <div class="side-panel w-full h-full overflow-hidden rounded-sm flex flex-col">
-  <div class="side-panel-header flex items-center gap-2 border-b border-surface-700/70 px-2 py-1">
-    <span class="shrink-0 text-[0.65rem] font-semibold uppercase text-surface-400">Code</span>
+  <div class="side-panel-header flex items-center border-b border-surface-700/70 px-2 py-1">
     <div class="flex min-w-0 flex-1 gap-1 overflow-x-auto">
       {#each tabs as tab}
         <button

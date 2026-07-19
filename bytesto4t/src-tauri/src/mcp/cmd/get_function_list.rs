@@ -33,7 +33,9 @@ impl ToolHandler for GetFunctionListHandler {
             );
         }
 
-        Ok(CallToolResult::text(function_names.join("\n")))
+        let mut result = CallToolResult::text(function_names.join("\n"));
+        result.structured_content = Some(json!({ "functions": function_names }));
+        Ok(result)
     }
 }
 

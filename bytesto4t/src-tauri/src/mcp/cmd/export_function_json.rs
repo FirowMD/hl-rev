@@ -1,4 +1,5 @@
 use crate::app_data::Storage;
+use crate::mcp::cmd::support;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
@@ -14,10 +15,6 @@ pub struct ExportFunctionJsonHandler {
 #[async_trait]
 impl ToolHandler for ExportFunctionJsonHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let function_index = arguments
-            .get("function_index")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| McpError::Validation("Missing 'function_index'".to_string()))?;
         let file_path = arguments
             .get("file_path")
             .and_then(|v| v.as_str())
@@ -32,23 +29,22 @@ impl ToolHandler for ExportFunctionJsonHandler {
             .bytecode
             .as_ref()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
-        let functions = &bytecode.functions;
-
-        let mut function = None;
-        for f in functions {
-            if f.findex.to_string() == function_index {
-                function = Some(f);
-                break;
-            }
-        }
-        if function.is_none() {
-            return Err(McpError::Validation(format!(
-                "Function with index {} not found",
-                function_index
-            )));
-        }
+        let function = if arguments.contains_key("index") {
+            let index = support::required_index(&arguments, "index")?;
+            bytecode.functions.get(index).ok_or_else(|| {
+                McpError::Validation(format!("Function vector index {} out of bounds", index))
+            })?
+        } else {
+            let findex = support::required_index(&arguments, "function_index")?;
+            bytecode
+                .functions
+                .iter()
+                .find(|function| function.findex.0 == findex)
+                .ok_or_else(|| {
+                    McpError::Validation(format!("Function with findex {} not found", findex))
+                })?
+        };
         let json_content = function
-            .unwrap()
             .to_json()
             .map_err(|e| McpError::Internal(e.to_string()))?;
         let mut file =
@@ -67,10 +63,18 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
             json!({
                 "type": "object",
                 "properties": {
-                    "function_index": {"type": "string"},
+                    "index": {"type": "integer", "minimum": 0, "description": "Function vector index"},
+                    "function_index": {
+                        "oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "pattern": "^[0-9]+$"}],
+                        "description": "Legacy function findex argument"
+                    },
                     "file_path": {"type": "string"}
                 },
-                "required": ["function_index", "file_path"],
+                "required": ["file_path"],
+                "oneOf": [
+                    {"required": ["index"], "not": {"required": ["function_index"]}},
+                    {"required": ["function_index"], "not": {"required": ["index"]}}
+                ],
                 "additionalProperties": false
             }),
             ExportFunctionJsonHandler { app_handle: ah },

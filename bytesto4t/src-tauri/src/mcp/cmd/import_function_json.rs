@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::Function;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -39,8 +40,14 @@ impl ToolHandler for ImportFunctionJsonHandler {
             .map(|line| line.map_err(|e| McpError::Internal(e.to_string())))
             .collect::<Result<Vec<_>, _>>()?
             .join("\n");
-        let function = Function::from_json(json_content.as_str())
+        let mut function = Function::from_json(json_content.as_str())
             .map_err(|e| McpError::Internal(e.to_string()))?;
+        if function.findex.0 == 0 {
+            function.findex.0 = support::next_findex(bytecode)?;
+        }
+        support::normalize_function_metadata(bytecode, &mut function)?;
+        support::ensure_findex_in_dense_range(bytecode, function.findex.0, true)?;
+        support::ensure_findex_available(bytecode, function.findex.0, None, None)?;
         bytecode_refs::validate_function_refs(bytecode, &function, "imported function", true)
             .map_err(McpError::Validation)?;
         bytecode.add_function(function);

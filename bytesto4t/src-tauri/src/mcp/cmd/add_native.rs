@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::{Native, RefFun, RefString, RefType, Type};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -78,7 +79,10 @@ impl ToolHandler for AddNativeHandler {
         let lib = RefString(lib_idx);
         let name = RefString(name_idx);
         let t = RefType(input.signature_type);
-        let findex = RefFun(input.findex.unwrap_or(bytecode.natives.len()));
+        let findex = input.findex.unwrap_or(support::next_findex(bytecode)?);
+        support::ensure_findex_in_dense_range(bytecode, findex, true)?;
+        support::ensure_findex_available(bytecode, findex, None, None)?;
+        let findex = RefFun(findex);
 
         let native = Native {
             lib,
@@ -88,7 +92,10 @@ impl ToolHandler for AddNativeHandler {
         };
         bytecode_refs::validate_native_refs(bytecode, &native, "new native")
             .map_err(McpError::Validation)?;
-        bytecode.natives.push(native);
+        let mut candidate = bytecode.clone();
+        candidate.natives.push(native);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }
@@ -102,8 +109,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
             json!({
                 "type": "object",
                 "properties": {
-                    "lib": {"type": "string"},
-                    "name": {"type": "string"},
+                    "lib": {"type": "string", "description": "Decimal string-pool index"},
+                    "name": {"type": "string", "description": "Decimal string-pool index"},
                     "signature_type": {"type": "integer"},
                     "findex": {"type": "integer"}
                 },

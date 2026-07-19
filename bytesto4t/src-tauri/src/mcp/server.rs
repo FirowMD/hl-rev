@@ -3,7 +3,10 @@ use prism_mcp_rs::prelude::*;
 use tauri::AppHandle;
 
 pub async fn start(app_handle: AppHandle) -> McpResult<()> {
-    let mut server = McpServer::new("bytesto4t".to_string(), "0.2.3".to_string());
+    let mut server = McpServer::new(
+        "bytesto4t".to_string(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
 
     cmd::get_function_list::register(&mut server, app_handle.clone()).await?;
     cmd::load_bytecode::register(&mut server, app_handle.clone()).await?;
@@ -18,11 +21,15 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
     cmd::export_function_json::register(&mut server, app_handle.clone()).await?;
 
     cmd::get_dashboard_info::register(&mut server, app_handle.clone()).await?;
+    cmd::get_inspector_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_decompiled_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_disassembler_info::register(&mut server, app_handle.clone()).await?;
     cmd::get_references::register(&mut server, app_handle.clone()).await?;
 
     cmd::read_binary_file::register(&mut server, app_handle.clone()).await?;
+    cmd::bytecode_tools::register(&mut server, app_handle.clone()).await?;
+    cmd::function_address_tools::register(&mut server, app_handle.clone()).await?;
+    cmd::export_text::register(&mut server, app_handle.clone()).await?;
 
     cmd::get_file_list::register(&mut server, app_handle.clone()).await?;
     cmd::get_string_list::register(&mut server, app_handle.clone()).await?;

@@ -1,4 +1,5 @@
 use crate::app_data::Storage;
+use crate::mcp::cmd::support;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
@@ -14,18 +15,11 @@ pub struct ExportTypeJsonHandler {
 #[async_trait]
 impl ToolHandler for ExportTypeJsonHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let type_index = arguments
-            .get("type_index")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| McpError::Validation("Missing 'type_index'".to_string()))?;
+        let index = support::required_index(&arguments, "type_index")?;
         let file_path = arguments
             .get("file_path")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'file_path'".to_string()))?;
-
-        let index: usize = type_index
-            .parse()
-            .map_err(|_| McpError::Validation("Invalid index format".to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
         let app_data = state
@@ -62,7 +56,7 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
             json!({
                 "type": "object",
                 "properties": {
-                    "type_index": {"type": "string"},
+                    "type_index": {"oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "pattern": "^[0-9]+$"}]},
                     "file_path": {"type": "string"}
                 },
                 "required": ["type_index", "file_path"],

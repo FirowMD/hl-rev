@@ -21,7 +21,12 @@ pub fn run() {
         let app = builder
             .build(tauri::generate_context!())
             .expect("error while building tauri application");
-        let _ = tauri::async_runtime::block_on(crate::mcp::server::start(app.handle().clone()));
+        if let Err(error) =
+            tauri::async_runtime::block_on(crate::mcp::server::start(app.handle().clone()))
+        {
+            eprintln!("MCP server failed: {error}");
+            std::process::exit(1);
+        }
         return;
     }
 

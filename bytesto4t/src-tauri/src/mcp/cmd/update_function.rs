@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::opcodes::Opcode;
 use hlbc::types::{Function, RefFun, RefString, RefType, Type};
 use prism_mcp_rs::prelude::*;
@@ -51,13 +52,13 @@ impl ToolHandler for UpdateFunctionHandler {
             ));
         }
 
-        let mut name = input.name;
-        if let Some(true) = input.is_constructor {
-            name = "new".to_string();
-        }
-        let name_idx = name.parse::<usize>().map_err(|_| {
-            McpError::Validation("Function name must be a string index".to_string())
-        })?;
+        let name_idx = if input.is_constructor == Some(true) {
+            support::constructor_name_index(bytecode)?
+        } else {
+            input.name.parse::<usize>().map_err(|_| {
+                McpError::Validation("Function name must be a string index".to_string())
+            })?
+        };
         if name_idx == 0 {
             return Err(McpError::Validation(
                 "Function name index 0 is reserved".to_string(),
@@ -98,17 +99,24 @@ impl ToolHandler for UpdateFunctionHandler {
         }
         let assigns_converted = input.assigns.as_ref().map(|asns| {
             asns.iter()
-                .map(|(name_idx, slot_idx)| (RefString(*name_idx as usize), *slot_idx))
+                .map(|(name_idx, slot_idx)| (RefString(*name_idx), *slot_idx))
                 .collect::<Vec<_>>()
         });
 
-        let f = Function {
+        let old_findex = bytecode.functions[input.index].findex;
+        let findex = input.findex.unwrap_or(old_findex.0);
+        support::ensure_findex_in_dense_range(bytecode, findex, false)?;
+        support::ensure_findex_available(bytecode, findex, Some(input.index), None)?;
+        if findex != old_findex.0 {
+            return Err(McpError::Validation(
+                "Changing a function findex is not supported; create a replacement function instead"
+                    .to_string(),
+            ));
+        }
+
+        let mut f = Function {
             t: RefType(type_idx),
-            findex: RefFun(
-                input
-                    .findex
-                    .unwrap_or(bytecode.functions[input.index].findex.0),
-            ),
+            findex: RefFun(findex),
             regs: regs_vec,
             ops: ops_vec,
             debug_info: input.debug_info.clone(),
@@ -116,6 +124,7 @@ impl ToolHandler for UpdateFunctionHandler {
             name: name_ref,
             parent: parent_ref,
         };
+        support::normalize_function_metadata(bytecode, &mut f)?;
         bytecode_refs::validate_function_refs(bytecode, &f, "updated function", false)
             .map_err(McpError::Validation)?;
         bytecode.functions[input.index] = f;
@@ -134,7 +143,7 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
                 "type": "object",
                 "properties": {
                     "index": {"type": "integer"},
-                    "name": {"type": "string"},
+                    "name": {"type": "string", "description": "Decimal string-pool index; ignored when is_constructor is true"},
                     "t": {"type": "integer"},
                     "findex": {"type": "integer"},
                     "ops": {"type": "array"},

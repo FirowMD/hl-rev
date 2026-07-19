@@ -1,4 +1,5 @@
-use crate::app_data::{AppItem, Storage};
+use crate::app_data::Storage;
+use crate::mcp::cmd::support;
 use hlbc::fmt::EnhancedFmt;
 use hlbc::types::Type;
 use hlbc::Resolve;
@@ -16,20 +17,13 @@ pub struct GetDisassemblerInfoHandler {
 #[async_trait]
 impl ToolHandler for GetDisassemblerInfoHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let index_str = arguments
-            .get("index")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))?;
+        let index = support::required_index(&arguments, "index")?;
         let typ_str = arguments
             .get("typ")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'typ'".to_string()))?;
 
         let state = self.app_handle.state::<Storage>();
-        let app_item = AppItem {
-            index: index_str.to_string(),
-            typ: typ_str.to_string(),
-        };
         let app_data = state
             .bytecode
             .lock()
@@ -38,12 +32,7 @@ impl ToolHandler for GetDisassemblerInfoHandler {
             .bytecode
             .as_ref()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
-        let index: usize = app_item
-            .index
-            .parse()
-            .map_err(|_| McpError::Validation("Invalid index format".to_string()))?;
-
-        let out = match app_item.typ.as_str() {
+        let out = match typ_str {
             "function" => {
                 if index >= bytecode.functions.len() {
                     return Err(McpError::Validation(
@@ -119,7 +108,7 @@ impl ToolHandler for GetDisassemblerInfoHandler {
             _ => {
                 return Err(McpError::Validation(format!(
                     "Unsupported item type: {}",
-                    app_item.typ
+                    typ_str
                 )))
             }
         };
@@ -136,7 +125,10 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
             Some("Get disassembler info for item".to_string()),
             json!({
                 "type": "object",
-                "properties": { "index": { "type": "string" }, "typ": { "type": "string" } },
+                "properties": {
+                    "index": {"oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "pattern": "^[0-9]+$"}]},
+                    "typ": {"type": "string", "enum": ["function", "class"]}
+                },
                 "required": ["index", "typ"],
                 "additionalProperties": false
             }),

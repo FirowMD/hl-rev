@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::{ConstantDef, RefGlobal};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -53,7 +54,13 @@ impl ToolHandler for UpdateConstantHandler {
                 input.index
             )));
         }
-        constants[input.index] = constant;
+        let mut candidate = bytecode.clone();
+        let candidate_constants = candidate.constants.as_mut().ok_or_else(|| {
+            McpError::Internal("Constants disappeared while preparing the update".to_string())
+        })?;
+        candidate_constants[input.index] = constant;
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

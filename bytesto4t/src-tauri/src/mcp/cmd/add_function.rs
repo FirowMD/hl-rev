@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::opcodes::Opcode;
 use hlbc::types::{Function, RefFun, RefString, RefType, Type};
 use prism_mcp_rs::prelude::*;
@@ -44,14 +45,13 @@ impl ToolHandler for AddFunctionHandler {
             .as_mut()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
-        let mut input = input;
-        if let Some(true) = input.is_constructor {
-            input.name = "new".to_string();
-        }
-
-        let name_idx = input.name.parse::<usize>().map_err(|_| {
-            McpError::Validation("Function name must be a string index".to_string())
-        })?;
+        let name_idx = if input.is_constructor == Some(true) {
+            support::constructor_name_index(bytecode)?
+        } else {
+            input.name.parse::<usize>().map_err(|_| {
+                McpError::Validation("Function name must be a string index".to_string())
+            })?
+        };
         if name_idx == 0 {
             return Err(McpError::Validation(
                 "Function name index 0 is reserved".to_string(),
@@ -92,21 +92,20 @@ impl ToolHandler for AddFunctionHandler {
         }
         let assigns_converted = input.assigns.as_ref().map(|asns| {
             asns.iter()
-                .map(|(name_idx, slot_idx)| (RefString(*name_idx as usize), *slot_idx))
+                .map(|(name_idx, slot_idx)| (RefString(*name_idx), *slot_idx))
                 .collect::<Vec<_>>()
         });
 
-        let f = Function {
+        let findex = match input.findex {
+            Some(findex) => findex,
+            None => support::next_findex(bytecode)?,
+        };
+        support::ensure_findex_in_dense_range(bytecode, findex, true)?;
+        support::ensure_findex_available(bytecode, findex, None, None)?;
+
+        let mut f = Function {
             t: RefType(type_idx),
-            findex: RefFun(input.findex.unwrap_or_else(|| {
-                bytecode
-                    .functions
-                    .iter()
-                    .map(|f| f.findex.0)
-                    .max()
-                    .unwrap_or(0)
-                    + 1
-            })),
+            findex: RefFun(findex),
             regs: regs_vec,
             ops: ops_vec,
             debug_info: input.debug_info.clone(),
@@ -114,6 +113,7 @@ impl ToolHandler for AddFunctionHandler {
             name: name_ref,
             parent: parent_ref,
         };
+        support::normalize_function_metadata(bytecode, &mut f)?;
         bytecode_refs::validate_function_refs_with_pending_fun(
             bytecode,
             &f,
@@ -122,7 +122,7 @@ impl ToolHandler for AddFunctionHandler {
             Some(f.findex),
         )
         .map_err(McpError::Validation)?;
-        bytecode.functions.push(f);
+        bytecode.add_function(f);
 
         Ok(CallToolResult::text("ok"))
     }
@@ -137,7 +137,7 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
             json!({
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
+                    "name": {"type": "string", "description": "Decimal string-pool index; ignored when is_constructor is true"},
                     "t": {"type": "integer"},
                     "findex": {"type": "integer"},
                     "ops": {"type": "array"},

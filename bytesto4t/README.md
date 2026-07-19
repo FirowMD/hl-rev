@@ -1,20 +1,18 @@
-# MCP Integration
+# ByteSto4t MCP integration
 
-ByteSto4t includes a built‑in MCP server scaffold based on `prism-mcp-rs`. This lets AI coding agents discover and call tools inside the app.
+ByteSto4t includes a stdio MCP server based on `prism-mcp-rs`. It exposes HashLink bytecode loading, inspection, decompilation, editing, merging, and export tools.
 
-## How to enable and use
-
-Add the following to your config file (e.g., `.mcp.json`):
+Build or install the `bytesto4t` executable, then add it to the MCP client configuration:
 
 ```json
 {
   "mcpServers": {
-    "bytesto4t-server": {
+    "bytesto4t": {
       "command": "bytesto4t",
-      "args": [
-        "--mcp"
-      ]
+      "args": ["--mcp"]
     }
   }
 }
 ```
+
+Use an absolute executable path when `bytesto4t` is not on `PATH`. See [MCP.md](MCP.md) for the tool contract and indexing rules.

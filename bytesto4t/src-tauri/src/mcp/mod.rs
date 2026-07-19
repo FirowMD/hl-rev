@@ -1,8 +1,2 @@
 pub mod cmd;
 pub mod server;
-
-pub fn start_server(app_handle: tauri::AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        let _ = server::start(app_handle).await;
-    });
-}

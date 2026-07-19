@@ -582,6 +582,53 @@ pub fn function_references(bytecode: &Bytecode, target: RefFun) -> Vec<String> {
     refs
 }
 
+pub fn compact_function_indexes_after_delete(bytecode: &mut Bytecode, removed: RefFun) {
+    if bytecode.entrypoint.0 > removed.0 {
+        bytecode.entrypoint.0 -= 1;
+    }
+    for ty in &mut bytecode.types {
+        if let Type::Obj(obj) | Type::Struct(obj) = ty {
+            for proto in &mut obj.protos {
+                if proto.findex.0 > removed.0 {
+                    proto.findex.0 -= 1;
+                }
+            }
+            for function in obj.bindings.values_mut() {
+                if function.0 > removed.0 {
+                    function.0 -= 1;
+                }
+            }
+        }
+    }
+    for function in &mut bytecode.functions {
+        if function.findex.0 > removed.0 {
+            function.findex.0 -= 1;
+        }
+        for opcode in &mut function.ops {
+            match opcode {
+                Opcode::Call0 { fun, .. }
+                | Opcode::Call1 { fun, .. }
+                | Opcode::Call2 { fun, .. }
+                | Opcode::Call3 { fun, .. }
+                | Opcode::Call4 { fun, .. }
+                | Opcode::CallN { fun, .. }
+                | Opcode::StaticClosure { fun, .. }
+                | Opcode::InstanceClosure { fun, .. }
+                    if fun.0 > removed.0 =>
+                {
+                    fun.0 -= 1;
+                }
+                _ => {}
+            }
+        }
+    }
+    for native in &mut bytecode.natives {
+        if native.findex.0 > removed.0 {
+            native.findex.0 -= 1;
+        }
+    }
+}
+
 fn collect_type_fun_refs_for_delete(
     ty: &Type,
     target: RefFun,
@@ -701,25 +748,109 @@ fn collect_field_string_refs(
 }
 
 pub fn int_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
-    opcode_pool_references(bytecode, |op| match op {
-        Opcode::Int { ptr, .. } if ptr.0 == target => true,
-        _ => false,
-    })
+    opcode_pool_references(
+        bytecode,
+        |op| matches!(op, Opcode::Int { ptr, .. } if ptr.0 == target),
+    )
 }
 
 pub fn float_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
-    opcode_pool_references(bytecode, |op| match op {
-        Opcode::Float { ptr, .. } if ptr.0 == target => true,
-        _ => false,
-    })
+    opcode_pool_references(
+        bytecode,
+        |op| matches!(op, Opcode::Float { ptr, .. } if ptr.0 == target),
+    )
 }
 
-#[allow(dead_code)]
 pub fn bytes_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
-    opcode_pool_references(bytecode, |op| match op {
-        Opcode::Bytes { ptr, .. } if ptr.0 == target => true,
-        _ => false,
-    })
+    opcode_pool_references(
+        bytecode,
+        |op| matches!(op, Opcode::Bytes { ptr, .. } if ptr.0 == target),
+    )
+}
+
+pub fn file_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
+    let mut refs = Vec::new();
+    for (function_idx, function) in bytecode.functions.iter().enumerate() {
+        if let Some(debug_info) = &function.debug_info {
+            for (debug_idx, (file_idx, line)) in debug_info.iter().enumerate() {
+                if *file_idx == target {
+                    refs.push(format!(
+                        "function[{}].debug_info[{}] (line {})",
+                        function_idx, debug_idx, line
+                    ));
+                }
+            }
+        }
+    }
+    refs
+}
+
+pub fn references_for_item(
+    bytecode: &Bytecode,
+    item_type: &str,
+    index: usize,
+) -> Result<Vec<String>, String> {
+    match item_type {
+        "function" => {
+            let function = bytecode
+                .functions
+                .get(index)
+                .ok_or_else(|| format!("Function index {} out of bounds", index))?;
+            Ok(function_references(bytecode, function.findex))
+        }
+        "class" | "type" => {
+            ensure_index("Type", index, bytecode.types.len(), "reference lookup")?;
+            Ok(type_references(bytecode, index))
+        }
+        "file" => {
+            let files = bytecode
+                .debug_files
+                .as_ref()
+                .ok_or_else(|| "debug_files not loaded".to_string())?;
+            ensure_index("File", index, files.len(), "reference lookup")?;
+            Ok(file_references(bytecode, index))
+        }
+        "global" => {
+            ensure_index("Global", index, bytecode.globals.len(), "reference lookup")?;
+            Ok(global_references(bytecode, index))
+        }
+        "constant" => {
+            let constants = bytecode
+                .constants
+                .as_ref()
+                .ok_or_else(|| "constants not loaded".to_string())?;
+            ensure_index("Constant", index, constants.len(), "reference lookup")?;
+            Ok(Vec::new())
+        }
+        "string" => {
+            ensure_index("String", index, bytecode.strings.len(), "reference lookup")?;
+            Ok(string_references(bytecode, index))
+        }
+        "int" => {
+            ensure_index("Int", index, bytecode.ints.len(), "reference lookup")?;
+            Ok(int_references(bytecode, index))
+        }
+        "float" => {
+            ensure_index("Float", index, bytecode.floats.len(), "reference lookup")?;
+            Ok(float_references(bytecode, index))
+        }
+        "native" => {
+            let native = bytecode
+                .natives
+                .get(index)
+                .ok_or_else(|| format!("Native index {} out of bounds", index))?;
+            Ok(function_references(bytecode, native.findex))
+        }
+        "bytes" => {
+            let (_, indices) = bytecode
+                .bytes
+                .as_ref()
+                .ok_or_else(|| "No bytes data available".to_string())?;
+            ensure_index("Bytes", index, indices.len(), "reference lookup")?;
+            Ok(bytes_references(bytecode, index))
+        }
+        _ => Err(format!("Unsupported item type: {}", item_type)),
+    }
 }
 
 fn opcode_pool_references<F>(bytecode: &Bytecode, matches_target: F) -> Vec<String>

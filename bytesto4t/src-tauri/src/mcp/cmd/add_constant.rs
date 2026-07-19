@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::{ConstantDef, RefGlobal};
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -42,8 +43,11 @@ impl ToolHandler for AddConstantHandler {
         };
         bytecode_refs::validate_constant_refs(bytecode, &constant, "new constant")
             .map_err(McpError::Validation)?;
-        let constants = bytecode.constants.get_or_insert_with(Vec::new);
+        let mut candidate = bytecode.clone();
+        let constants = candidate.constants.get_or_insert_with(Vec::new);
         constants.push(constant);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }
