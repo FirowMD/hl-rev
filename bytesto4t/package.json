@@ -21,7 +21,7 @@
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
-    "@skeletonlabs/skeleton": "^4.15.2",
+    "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^4.15.2",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.69.2",
