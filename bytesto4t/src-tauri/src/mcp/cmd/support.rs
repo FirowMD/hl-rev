@@ -88,7 +88,7 @@ pub fn constructor_name_index(bytecode: &Bytecode) -> McpResult<usize> {
     bytecode
         .strings
         .iter()
-        .position(|value| value.as_str() == "new")
+        .position(|value| value.as_ref() == "new")
         .ok_or_else(|| {
             McpError::Validation(
                 "Constructor name 'new' is missing from the string pool; create it first"
