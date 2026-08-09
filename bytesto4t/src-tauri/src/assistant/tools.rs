@@ -3,9 +3,8 @@ use prism_mcp_rs::prelude::{CallToolResult, ContentBlock, McpError, McpResult, T
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
-use tauri_plugin_dialog::DialogExt;
 
 const MAX_TOOL_OUTPUT_CHARS: usize = 100_000;
 
@@ -152,7 +151,7 @@ pub fn definitions(allow_bytecode_edits: bool) -> Vec<Value> {
         definitions.extend(pool_tools());
         definitions.push(tool(
             "save_bytecode",
-            "Open a native save dialog, then validate and serialize the loaded bytecode to the path selected by the user.",
+            "Validate and save the loaded bytecode beside its source using a .patched filename. This does not open a dialog or overwrite the loaded source, but it replaces an existing patched output.",
             empty_schema(),
         ));
     }
@@ -717,7 +716,7 @@ async fn dispatch(
                 .await
         }
         "validate_bytecode" => validate_bytecode(&app_handle),
-        "save_bytecode" => save_bytecode_with_dialog(&app_handle).await,
+        "save_bytecode" => save_bytecode_to_patched_file(&app_handle).await,
         _ => return Err(format!("Unknown assistant tool: {name}")),
     };
     result.map_err(|error| error.to_string())
@@ -743,7 +742,7 @@ fn validate_bytecode(app_handle: &AppHandle) -> McpResult<CallToolResult> {
     Ok(CallToolResult::text("ok"))
 }
 
-async fn save_bytecode_with_dialog(app_handle: &AppHandle) -> McpResult<CallToolResult> {
+async fn save_bytecode_to_patched_file(app_handle: &AppHandle) -> McpResult<CallToolResult> {
     let target_path = {
         let state = app_handle.state::<Storage>();
         let app_data = state
@@ -756,41 +755,27 @@ async fn save_bytecode_with_dialog(app_handle: &AppHandle) -> McpResult<CallTool
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
         app_data.target_file_path.clone()
     };
-    let target = Path::new(&target_path);
-    let mut dialog = app_handle
-        .dialog()
-        .file()
-        .set_title("Save patched HashLink bytecode");
-    if let Some(parent) = target
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        dialog = dialog.set_directory(parent);
-    }
-    if let Some(file_name) = patched_file_name(target) {
-        dialog = dialog.set_file_name(file_name);
-    }
-
-    let (sender, receiver) = tokio::sync::oneshot::channel();
-    dialog.save_file(move |selection| {
-        let _ = sender.send(selection);
-    });
-    let selection = receiver
-        .await
-        .map_err(|_| McpError::Internal("Save dialog closed unexpectedly".to_string()))?
-        .ok_or_else(|| McpError::Validation("Save cancelled by user".to_string()))?;
-    let path = selection
-        .into_path()
-        .map_err(|error| McpError::Validation(error.to_string()))?;
-    let file_path = path
+    let output_path = patched_file_path(Path::new(&target_path)).ok_or_else(|| {
+        McpError::Validation("Loaded bytecode has no valid source file name".to_string())
+    })?;
+    let file_path = output_path
         .to_str()
-        .ok_or_else(|| McpError::Validation("Selected save path is not valid UTF-8".to_string()))?;
+        .ok_or_else(|| McpError::Validation("Patched save path is not valid UTF-8".to_string()))?;
     let arguments = HashMap::from([("file_path".to_string(), json!(file_path))]);
     crate::mcp::cmd::save_bytecode::SaveBytecodeHandler {
         app_handle: app_handle.clone(),
     }
     .call(arguments)
-    .await
+    .await?;
+
+    Ok(CallToolResult::text(format!(
+        "Saved bytecode to {}",
+        output_path.display()
+    )))
+}
+
+fn patched_file_path(path: &Path) -> Option<PathBuf> {
+    Some(path.with_file_name(patched_file_name(path)?))
 }
 
 fn patched_file_name(path: &Path) -> Option<String> {
@@ -888,15 +873,20 @@ mod tests {
     }
 
     #[test]
-    fn patched_save_name_preserves_the_extension() {
+    fn patched_save_path_is_beside_source_and_preserves_extension() {
         assert_eq!(
-            patched_file_name(Path::new("game.hl")).as_deref(),
-            Some("game.patched.hl")
+            patched_file_path(Path::new("bytecode/game.hl")),
+            Some(PathBuf::from("bytecode/game.patched.hl"))
         );
         assert_eq!(
-            patched_file_name(Path::new("hlboot.dat")).as_deref(),
-            Some("hlboot.patched.dat")
+            patched_file_path(Path::new("hlboot.dat")),
+            Some(PathBuf::from("hlboot.patched.dat"))
         );
+        assert_eq!(
+            patched_file_path(Path::new("bytecode")),
+            Some(PathBuf::from("bytecode.patched"))
+        );
+        assert_eq!(patched_file_path(Path::new("")), None);
     }
 
     #[test]
