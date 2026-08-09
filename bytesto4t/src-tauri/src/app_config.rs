@@ -8,6 +8,7 @@ pub struct AssistantConfig {
     pub bypass_proxy: bool,
     pub disable_tls: bool,
     pub proxy_url: String,
+    pub allow_bytecode_edits: bool,
     pub privacy_disclosure_version: u32,
 }
 
@@ -19,6 +20,7 @@ impl Default for AssistantConfig {
             bypass_proxy: false,
             disable_tls: false,
             proxy_url: String::new(),
+            allow_bytecode_edits: false,
             privacy_disclosure_version: 0,
         }
     }
@@ -58,6 +60,7 @@ mod tests {
         .unwrap();
         assert_eq!(config.assistant.reasoning_effort, "medium");
         assert!(!config.assistant.bypass_proxy);
+        assert!(!config.assistant.allow_bytecode_edits);
         assert_eq!(config.assistant.privacy_disclosure_version, 0);
     }
 }

@@ -257,6 +257,7 @@ pub async fn chat(
     let mut reasoning = Vec::new();
     let mut seen_calls = HashSet::new();
     let mut tool_call_count = 0;
+    let mut bytecode_revision = 0;
     let mut completed_rounds = 0;
     let mut usage = AssistantUsage {
         input_tokens: 0,
@@ -314,7 +315,7 @@ pub async fn chat(
                     arguments: arguments.clone(),
                 },
             );
-            let signature = format!("{}:{}", call.name, arguments);
+            let signature = tool_call_signature(&call.name, &arguments, bytecode_revision);
             let (output, activity) = if !seen_calls.insert(signature) {
                 let output = "Tool loop guard: this exact call already completed. Use its previous result or inspect a different item.".to_string();
                 let activity = ToolActivity {
@@ -336,8 +337,17 @@ pub async fn chat(
                 };
                 (output, activity)
             } else {
-                tools::execute(app_handle.clone(), &call.name, arguments).await
+                tools::execute(
+                    app_handle.clone(),
+                    &call.name,
+                    arguments,
+                    config.allow_bytecode_edits,
+                )
+                .await
             };
+            if activity.success && tools::changes_loaded_bytecode(&call.name) {
+                bytecode_revision += 1;
+            }
             send_event(
                 &on_event,
                 AssistantStreamEvent::ToolFinished {
@@ -398,6 +408,16 @@ pub async fn chat(
         tool_activity: activities,
         usage,
     })
+}
+
+fn tool_call_signature(name: &str, arguments: &Value, bytecode_revision: usize) -> String {
+    if tools::changes_loaded_bytecode(name) {
+        format!("mutation:{name}:{arguments}")
+    } else if tools::is_mutating(name) {
+        format!("side-effect:{bytecode_revision}:{name}:{arguments}")
+    } else {
+        format!("read:{bytecode_revision}:{name}:{arguments}")
+    }
 }
 
 fn send_event(channel: &Channel<AssistantStreamEvent>, event: AssistantStreamEvent) {
@@ -590,7 +610,7 @@ fn build_response_payload(
         "stream": true
     });
     if allow_tools {
-        payload["tools"] = json!(tools::definitions());
+        payload["tools"] = json!(tools::definitions(config.allow_bytecode_edits));
         payload["tool_choice"] = json!("auto");
         payload["parallel_tool_calls"] = json!(true);
     } else {
@@ -1013,12 +1033,44 @@ mod tests {
             json!(["reasoning.encrypted_content"])
         );
         assert_eq!(tool_payload["reasoning"]["summary"], "auto");
+        assert!(tool_payload["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|tool| { tool.get("name").and_then(Value::as_str) != Some("update_function") }));
+
+        let mut editable_config = config.clone();
+        editable_config.allow_bytecode_edits = true;
+        let editable_payload =
+            build_response_payload(&editable_config, "gpt-test", "instructions", &input, true);
+        assert!(editable_payload["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tool| { tool.get("name").and_then(Value::as_str) == Some("update_function") }));
 
         let final_payload =
             build_response_payload(&config, "gpt-test", "instructions", &input, false);
         assert_eq!(final_payload["parallel_tool_calls"], false);
         assert_eq!(final_payload["tool_choice"], "none");
         assert!(final_payload["tools"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn tool_loop_signatures_allow_reads_after_mutation() {
+        let arguments = json!({"index": 7});
+        assert_ne!(
+            tool_call_signature("get_function_full_info", &arguments, 0),
+            tool_call_signature("get_function_full_info", &arguments, 1)
+        );
+        assert_eq!(
+            tool_call_signature("update_function", &arguments, 0),
+            tool_call_signature("update_function", &arguments, 1)
+        );
+        assert_ne!(
+            tool_call_signature("save_bytecode", &arguments, 0),
+            tool_call_signature("save_bytecode", &arguments, 1)
+        );
     }
 
     #[test]

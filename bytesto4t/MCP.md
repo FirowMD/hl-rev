@@ -4,7 +4,7 @@ The server runs over stdio when ByteSto4t is launched with `--mcp`. A typical se
 
 ## In-app assistant (experimental and unofficial)
 
-The `Assistant` workspace tab uses ChatGPT OAuth and an experimental ChatGPT Codex compatibility endpoint. This is not an official OpenAI integration, and endpoint availability, account entitlements, or protocol behavior can change. It exposes a read-only subset of the same MCP handlers to the model: dashboard, function and type discovery, inspection, decompilation, disassembly, references, and type-usage lookup. The in-app assistant cannot mutate or save bytecode.
+The `Assistant` workspace tab uses ChatGPT OAuth and an experimental ChatGPT Codex compatibility endpoint. This is not an official OpenAI integration, and endpoint availability, account entitlements, or protocol behavior can change. It exposes inspection, decompilation, disassembly, reference, lossless item lookup, validation, and optional patching handlers for the currently loaded module. Mutation and save tools are hidden and rejected unless `Allow bytecode edits` is enabled in Assistant settings. The setting defaults to off.
 
 Before the first connection or request, bytesto4t requires acceptance of a versioned privacy disclosure:
 
@@ -63,7 +63,9 @@ For example, `toLowerCase@1@444` has `findex` 1 and vector `index` 444. Tools wi
 
 ## Editing behavior
 
-Edits affect the loaded in-memory bytecode. They are not written back to the source file automatically. Use `save_bytecode` to serialize a stripped bytecode file to a new path.
+Edits affect the loaded in-memory bytecode. They are not written back to the source file automatically. Use `save_bytecode` to validate and serialize the bytecode, including debug data, to a new path.
+
+The embedded Assistant mutates only when its edit setting is enabled and the current user request explicitly asks for a patch. It reuses the MCP validation handlers, but a sequence of separate tool calls is not transactional: if a later call fails, earlier successful edits remain in memory. Its `save_bytecode` binding opens a native save dialog instead of accepting a model-supplied path, so the user always chooses the destination. The Assistant is instructed to re-inspect changed items, validate the final module, and report whether changes were only applied in memory or also saved.
 
 Function and native `findex` values must remain unique and dense across both pools. ByteSto4t allocates the next shared value when `findex` is omitted, rejects collisions, repairs references when indexes are compacted, and rebuilds HLBC runtime lookup indexes after affected edits.
 

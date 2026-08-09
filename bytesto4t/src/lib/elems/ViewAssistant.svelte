@@ -33,6 +33,7 @@
     bypass_proxy: boolean;
     disable_tls: boolean;
     proxy_url: string;
+    allow_bytecode_edits: boolean;
     privacy_disclosure_version: number;
   };
 
@@ -104,6 +105,7 @@
     bypass_proxy: false,
     disable_tls: false,
     proxy_url: "",
+    allow_bytecode_edits: false,
     privacy_disclosure_version: 0
   };
 
@@ -758,6 +760,10 @@
         </label>
 
         <div class="toggle-group">
+          <label class="toggle-label warning-toggle">
+            <input type="checkbox" bind:checked={settings.allow_bytecode_edits} />
+            <span>Allow bytecode edits</span>
+          </label>
           <label class="toggle-label">
             <input type="checkbox" bind:checked={settings.bypass_proxy} />
             <span>Bypass proxy</span>
@@ -1423,6 +1429,7 @@
 
   .toggle-group {
     display: flex;
+    flex-wrap: wrap;
     min-height: 1.85rem;
     align-items: end;
     gap: 1rem;
