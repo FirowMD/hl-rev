@@ -1,25 +1,20 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use prism_mcp_rs::prelude::*;
-use serde_json::json;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
 
 #[derive(Clone)]
-pub struct RemoveStringHandler {
+pub struct RemoveBytesHandler {
     pub app_handle: AppHandle,
 }
 
 #[async_trait]
-impl ToolHandler for RemoveStringHandler {
+impl ToolHandler for RemoveBytesHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let index = arguments
-            .get("index")
-            .and_then(|v| v.as_i64())
-            .ok_or_else(|| McpError::Validation("Missing 'index'".to_string()))?
-            as usize;
-
+        let index = support::required_index(&arguments, "index")?;
         let state = self.app_handle.state::<Storage>();
         let mut app_data = state
             .bytecode
@@ -29,39 +24,43 @@ impl ToolHandler for RemoveStringHandler {
             .bytecode
             .as_mut()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
-
-        if index >= bytecode.strings.len() {
-            return Err(McpError::Validation(format!(
-                "String index {} out of bounds",
-                index
-            )));
-        }
-
+        let count = bytecode
+            .bytes
+            .as_ref()
+            .ok_or_else(|| {
+                McpError::Validation("Bytecode versions before v5 have no bytes pool".to_string())
+            })?
+            .1
+            .len();
         bytecode_refs::ensure_tail_delete(
-            "String",
+            "Bytes",
             index,
-            bytecode.strings.len(),
-            bytecode_refs::string_references(bytecode, index),
+            count,
+            bytecode_refs::bytes_references(bytecode, index),
         )
         .map_err(McpError::Validation)?;
-        bytecode.strings.remove(index);
+        let mut candidate = bytecode.clone();
+        let (blob, positions) = candidate.bytes.as_mut().expect("checked bytes pool");
+        let start = positions.pop().expect("checked bytes index");
+        blob.truncate(start);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }
 
 pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResult<()> {
-    let ah = app_handle;
     server
         .add_tool(
-            "delete_string".to_string(),
-            Some("Delete a string by index".to_string()),
+            "delete_bytes".to_string(),
+            Some("Delete the unreferenced tail entry of a v5 bytes pool".to_string()),
             json!({
                 "type": "object",
-                "properties": { "index": { "type": "integer" } },
+                "properties": {"index": {"type": "integer", "minimum": 0}},
                 "required": ["index"],
                 "additionalProperties": false
             }),
-            RemoveStringHandler { app_handle: ah },
+            RemoveBytesHandler { app_handle },
         )
         .await?;
     Ok(())

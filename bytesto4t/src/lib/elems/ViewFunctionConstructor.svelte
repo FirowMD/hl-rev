@@ -240,11 +240,17 @@
       
       if (paramType === "bool") {
         params[paramKey] = v === "true";
-      } else if (paramType === "reg" || paramType === "int" || paramType === "function" || !paramType) {
+      } else if (paramType === "regs" || paramType === "offsets") {
+        const values = String(v)
+          .split(",")
+          .map(value => value.trim())
+          .filter(Boolean)
+          .map(Number);
+        if (values.some(value => !Number.isInteger(value) || (paramType === "offsets" && value < 0))) continue;
+        params[paramKey] = values;
+      } else {
         if (isNaN(+v)) continue; // Skip invalid numbers instead of failing
         params[paramKey] = Number(v);
-      } else {
-        params[paramKey] = v;
       }
     }
 
@@ -1334,6 +1340,20 @@
                           {/if}
                         </div>
                       
+                      {:else if param.type === 'regs' || param.type === 'offsets'}
+                        <input
+                          class="w-full px-3 py-2 text-sm border border-surface-300 dark:border-surface-600 rounded-lg
+                            bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100"
+                          type="text"
+                          value={Array.isArray(editingOpcode?.params[paramKey])
+                            ? editingOpcode!.params[paramKey].join(', ')
+                            : editingOpcode?.params[paramKey] || ''}
+                          oninput={(e) => {
+                            const target = e.target as HTMLInputElement;
+                            if (target) setOpcodeParam(paramKey, target.value);
+                          }}
+                        />
+
                       {:else if param.type === 'bool'}
                         <!-- Boolean selector -->
                         <select

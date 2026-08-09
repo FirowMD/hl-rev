@@ -3,7 +3,6 @@ use hlbc::Bytecode;
 use prism_mcp_rs::prelude::{McpError, McpResult};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::io::Cursor;
 
 pub fn required_index(arguments: &HashMap<String, Value>, key: &str) -> McpResult<usize> {
     let value = arguments
@@ -117,7 +116,11 @@ pub fn normalize_function_metadata(bytecode: &Bytecode, function: &mut Function)
             }
             Some(_) => {}
         }
-        function.assigns.get_or_insert_with(Vec::new);
+        if bytecode.version >= 3 {
+            function.assigns.get_or_insert_with(Vec::new);
+        } else {
+            function.assigns = None;
+        }
     } else {
         if function
             .debug_info
@@ -139,34 +142,23 @@ pub fn normalize_function_metadata(bytecode: &Bytecode, function: &mut Function)
 }
 
 pub fn rebuild_runtime_indexes(bytecode: &mut Bytecode) -> McpResult<()> {
-    let bytecode_to_rebuild = bytecode.clone();
-    let worker = std::thread::Builder::new()
-        .name("bytesto4t-bytecode-rebuild".to_string())
-        .stack_size(32 * 1024 * 1024)
-        .spawn(move || -> hlbc::Result<Bytecode> {
-            let function_metadata = bytecode_to_rebuild
-                .functions
-                .iter()
-                .map(|function| (function.findex, (function.name, function.parent)))
-                .collect::<HashMap<_, _>>();
-            let mut encoded = Vec::new();
-            bytecode_to_rebuild.serialize(&mut encoded)?;
-            let mut rebuilt = Bytecode::deserialize(Cursor::new(encoded))?;
-            for function in &mut rebuilt.functions {
-                if let Some((name, parent)) = function_metadata.get(&function.findex) {
-                    function.name = *name;
-                    function.parent = *parent;
-                }
-            }
-            Ok(rebuilt)
-        })
-        .map_err(|error| McpError::Internal(format!("Failed to start rebuild worker: {error}")))?;
-    let rebuilt = worker
-        .join()
-        .map_err(|_| McpError::Internal("Bytecode rebuild worker panicked".to_string()))?
-        .map_err(|error| McpError::Internal(error.to_string()))?;
-    *bytecode = rebuilt;
-    Ok(())
+    let function_metadata = bytecode
+        .functions
+        .iter()
+        .map(|function| (function.findex, (function.name, function.parent)))
+        .collect::<HashMap<_, _>>();
+    bytecode
+        .rebuild_derived_data()
+        .map_err(|error| McpError::Validation(error.to_string()))?;
+    for function in &mut bytecode.functions {
+        if let Some((name, parent)) = function_metadata.get(&function.findex) {
+            function.name = *name;
+            function.parent = *parent;
+        }
+    }
+    bytecode
+        .validate()
+        .map_err(|error| McpError::Validation(error.to_string()))
 }
 
 #[cfg(test)]

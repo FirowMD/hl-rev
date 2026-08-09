@@ -41,11 +41,6 @@ impl ToolHandler for UpdateStringHandler {
                 input.index
             )));
         }
-        if input.index == 0 {
-            return Err(McpError::Validation(
-                "Cannot update reserved string at index 0".to_string(),
-            ));
-        }
 
         let mut candidate = bytecode.clone();
         candidate.strings[input.index] = hlbc::Str::from(input.value);

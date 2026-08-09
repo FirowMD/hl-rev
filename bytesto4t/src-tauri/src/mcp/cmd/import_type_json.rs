@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::Type;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -43,7 +44,10 @@ impl ToolHandler for ImportTypeJsonHandler {
             .map_err(|e| McpError::Internal(e.to_string()))?;
         bytecode_refs::validate_type_refs(bytecode, &ty, "imported type")
             .map_err(McpError::Validation)?;
-        bytecode.add_type(ty);
+        let mut candidate = bytecode.clone();
+        candidate.types.push(ty);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

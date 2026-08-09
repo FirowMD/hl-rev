@@ -1,3 +1,4 @@
+pub mod assistant;
 pub mod bytecode;
 pub mod config;
 pub mod data;

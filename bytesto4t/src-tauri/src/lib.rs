@@ -1,5 +1,6 @@
 mod app_config;
 mod app_data;
+mod assistant;
 mod bytecode_refs;
 mod commands;
 mod mcp;
@@ -15,6 +16,7 @@ pub fn run() {
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(assistant::AssistantState::default())
         .manage(Storage::default());
 
     if is_mcp_mode {

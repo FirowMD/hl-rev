@@ -29,7 +29,9 @@ pub fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
             let decompiled = decompile_function(&bytecode, &function).map_err(|e| e.to_string())?;
             Ok(format!(
                 "{}",
-                decompiled.value.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+                decompiled
+                    .value
+                    .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
             ))
         }
         "class" => {
@@ -43,7 +45,9 @@ pub fn get_decompiled_info(app_data: State<Storage>) -> Result<String, String> {
                     let decompiled = decompile_class(&bytecode, obj).map_err(|e| e.to_string())?;
                     Ok(format!(
                         "{}",
-                        decompiled.value.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+                        decompiled
+                            .value
+                            .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
                     ))
                 }
                 _ => Err("Type is not an object".to_string()),

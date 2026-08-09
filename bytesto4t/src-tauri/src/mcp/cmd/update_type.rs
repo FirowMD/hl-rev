@@ -1,14 +1,13 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
 use hlbc::types::{
-    EnumConstruct, ObjField, ObjProto, RefFun, RefGlobal, RefString, RefType, Type, TypeFun,
-    TypeObj,
+    EnumConstruct, ObjField, ObjProto, RefField, RefFun, RefGlobal, RefString, RefType, Type,
+    TypeFun, TypeObj,
 };
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::collections::HashMap as StdHashMap;
 use tauri::{AppHandle, Manager};
 
 #[derive(Clone)]
@@ -36,6 +35,12 @@ struct NewEnumConstructInput {
 }
 
 #[derive(Debug, serde::Deserialize)]
+struct NewBindingInput {
+    pub field: usize,
+    pub findex: usize,
+}
+
+#[derive(Debug, serde::Deserialize)]
 struct UpdateTypeInput {
     pub index: usize,
     pub type_kind: String,
@@ -48,6 +53,7 @@ struct UpdateTypeInput {
     pub fields: Option<Vec<NewFieldInput>>,
     pub protos: Option<Vec<NewProtoInput>>,
     pub constructs: Option<Vec<NewEnumConstructInput>>,
+    pub bindings: Option<Vec<NewBindingInput>>,
 }
 
 #[async_trait]
@@ -71,6 +77,10 @@ impl ToolHandler for UpdateTypeHandler {
         if input.index >= bytecode.types.len() {
             return Err(McpError::Validation("Type index out of bounds".to_string()));
         }
+        let existing_bindings = bytecode.types[input.index]
+            .get_type_obj()
+            .map(|object| object.bindings.clone())
+            .unwrap_or_default();
 
         let updated_type = match input.type_kind.as_str() {
             "void" => Type::Void,
@@ -86,6 +96,7 @@ impl ToolHandler for UpdateTypeHandler {
             "array" => Type::Array,
             "type" => Type::Type,
             "dynobj" => Type::DynObj,
+            "guid" => Type::Guid,
             "ref" => {
                 let inner = input.inner_type.ok_or_else(|| {
                     McpError::Validation("ref type requires inner_type".to_string())
@@ -164,6 +175,12 @@ impl ToolHandler for UpdateTypeHandler {
                     })
                     .collect();
                 let protos = protos?;
+                let bindings = input.bindings.map_or(existing_bindings, |bindings| {
+                    bindings
+                        .into_iter()
+                        .map(|binding| (RefField(binding.field), RefFun(binding.findex)))
+                        .collect()
+                });
 
                 let type_obj = TypeObj {
                     name,
@@ -172,7 +189,7 @@ impl ToolHandler for UpdateTypeHandler {
                     own_fields,
                     fields: Vec::new(),
                     protos,
-                    bindings: StdHashMap::new(),
+                    bindings,
                 };
                 if input.type_kind == "obj" {
                     Type::Obj(type_obj)
@@ -250,7 +267,10 @@ impl ToolHandler for UpdateTypeHandler {
 
         bytecode_refs::validate_type_refs(bytecode, &updated_type, "updated type")
             .map_err(McpError::Validation)?;
-        bytecode.types[input.index] = updated_type;
+        let mut candidate = bytecode.clone();
+        candidate.types[input.index] = updated_type;
+        super::support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }
@@ -265,7 +285,7 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
                 "type": "object",
                 "properties": {
                     "index": {"type": "integer"},
-                    "type_kind": {"type": "string"},
+                    "type_kind": {"type": "string", "enum": ["void", "ui8", "ui16", "i32", "i64", "f32", "f64", "bool", "bytes", "dyn", "fun", "obj", "array", "type", "ref", "virtual", "dynobj", "abstract", "enum", "null", "method", "struct", "packed", "guid"]},
                     "name": {"type": "string"},
                     "super_type": {"type": "integer"},
                     "global": {"type": "integer"},
@@ -274,7 +294,8 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
                     "ret": {"type": "integer"},
                     "fields": {"type": "array"},
                     "protos": {"type": "array"},
-                    "constructs": {"type": "array"}
+                    "constructs": {"type": "array"},
+                    "bindings": {"type": "array", "items": {"type": "object", "properties": {"field": {"type": "integer", "minimum": 0}, "findex": {"type": "integer", "minimum": 0}}, "required": ["field", "findex"], "additionalProperties": false}}
                 },
                 "required": ["index", "type_kind"],
                 "additionalProperties": false

@@ -1,18 +1,20 @@
-use tauri::{ipc::Invoke, Runtime};
+use tauri::{ipc::Invoke, Runtime, Wry};
 
-pub fn handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'static {
-    let bytecode = bytecode::handler::<R>();
-    let functions = functions::handler::<R>();
-    let types = types::handler::<R>();
-    let data = data::handler::<R>();
-    let decompiler = decompiler::handler::<R>();
-    let export = export::handler::<R>();
-    let config = config::handler::<R>();
-    let history = history::handler::<R>();
+pub fn handler() -> impl Fn(Invoke<Wry>) -> bool + Send + Sync + 'static {
+    let assistant = assistant::handler();
+    let bytecode = bytecode::handler::<Wry>();
+    let functions = functions::handler::<Wry>();
+    let types = types::handler::<Wry>();
+    let data = data::handler::<Wry>();
+    let decompiler = decompiler::handler::<Wry>();
+    let export = export::handler::<Wry>();
+    let config = config::handler::<Wry>();
+    let history = history::handler::<Wry>();
 
     move |invoke| {
         let command = invoke.message.command().to_string();
         match command.as_str() {
+            command if assistant::handles(command) => assistant(invoke),
             command if bytecode::handles(command) => bytecode(invoke),
             command if functions::handles(command) => functions(invoke),
             command if types::handles(command) => types(invoke),
@@ -23,6 +25,45 @@ pub fn handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'stat
             command if history::handles(command) => history(invoke),
             _ => false,
         }
+    }
+}
+
+mod assistant {
+    use super::*;
+
+    pub fn handles(command: &str) -> bool {
+        matches!(
+            command,
+            "get_assistant_status"
+                | "start_chatgpt_oauth"
+                | "disconnect_chatgpt"
+                | "discover_chatgpt_models"
+                | "update_assistant_settings"
+                | "accept_assistant_privacy_disclosure"
+                | "load_assistant_chats"
+                | "save_assistant_chats"
+                | "delete_assistant_chats"
+                | "migrate_assistant_chats"
+                | "send_assistant_message"
+                | "cancel_assistant_message"
+        )
+    }
+
+    pub fn handler() -> impl Fn(Invoke<Wry>) -> bool + Send + Sync + 'static {
+        tauri::generate_handler![
+            crate::commands::assistant::get_assistant_status,
+            crate::commands::assistant::start_chatgpt_oauth,
+            crate::commands::assistant::disconnect_chatgpt,
+            crate::commands::assistant::discover_chatgpt_models,
+            crate::commands::assistant::update_assistant_settings,
+            crate::commands::assistant::accept_assistant_privacy_disclosure,
+            crate::commands::assistant::load_assistant_chats,
+            crate::commands::assistant::save_assistant_chats,
+            crate::commands::assistant::delete_assistant_chats,
+            crate::commands::assistant::migrate_assistant_chats,
+            crate::commands::assistant::send_assistant_message,
+            crate::commands::assistant::cancel_assistant_message,
+        ]
     }
 }
 

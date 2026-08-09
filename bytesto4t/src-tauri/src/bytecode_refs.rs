@@ -92,11 +92,15 @@ pub fn ensure_float_ref(bytecode: &Bytecode, ptr: RefFloat, context: &str) -> Re
 }
 
 pub fn ensure_bytes_ref(bytecode: &Bytecode, ptr: RefBytes, context: &str) -> Result<(), String> {
-    let len = bytecode
-        .bytes
-        .as_ref()
-        .map(|(_, indices)| indices.len())
-        .unwrap_or(0);
+    let len = if bytecode.version >= 5 {
+        bytecode
+            .bytes
+            .as_ref()
+            .map(|(_, indices)| indices.len())
+            .unwrap_or(0)
+    } else {
+        bytecode.strings.len()
+    };
     ensure_index("Bytes", ptr.0, len, context)
 }
 
@@ -156,14 +160,6 @@ fn validate_type_obj(bytecode: &Bytecode, obj: &TypeObj, context: &str) -> Resul
         validate_proto(bytecode, proto, &format!("{} proto {}", context, proto_idx))?;
     }
     for (field, fun) in &obj.bindings {
-        if field.0 >= obj.fields.len() {
-            return Err(format!(
-                "Field reference {} is out of bounds for {} bindings (fields len: {})",
-                field.0,
-                context,
-                obj.fields.len()
-            ));
-        }
         ensure_fun_ref(bytecode, *fun, &format!("{} binding {}", context, field.0))?;
     }
     Ok(())
@@ -213,16 +209,30 @@ pub fn validate_constant_refs(
         .get(global_type.0)
         .and_then(Type::get_type_obj)
     {
-        for field in &constant.fields {
-            if *field >= obj.fields.len() {
-                return Err(format!(
-                    "Field reference {} is out of bounds for {} (fields len: {})",
-                    field,
-                    context,
-                    obj.fields.len()
-                ));
+        if constant.fields.len() > obj.fields.len() {
+            return Err(format!(
+                "{} has {} initializer values for {} fields",
+                context,
+                constant.fields.len(),
+                obj.fields.len()
+            ));
+        }
+        for (&value, field) in constant.fields.iter().zip(&obj.fields) {
+            ensure_type_index(bytecode, field.t.0, context)?;
+            match bytecode.types[field.t.0] {
+                Type::I32 => ensure_index("Int", value, bytecode.ints.len(), context)?,
+                Type::Bool => {}
+                Type::F64 => ensure_index("Float", value, bytecode.floats.len(), context)?,
+                Type::Bytes => ensure_index("String", value, bytecode.strings.len(), context)?,
+                Type::Type => ensure_index("Type", value, bytecode.types.len(), context)?,
+                _ => ensure_index("Global", value, bytecode.globals.len(), context)?,
             }
         }
+    } else {
+        return Err(format!(
+            "{} global {} must have an object or struct type",
+            context, constant.global.0
+        ));
     }
     Ok(())
 }
@@ -328,9 +338,9 @@ fn validate_opcode_refs(
                 ensure_fun_ref(bytecode, *fun, context)
             }
         }
-        Opcode::GetGlobal { global, .. } | Opcode::SetGlobal { global, .. } => {
-            ensure_global_index(bytecode, global.0, context)
-        }
+        Opcode::GetGlobal { global, .. }
+        | Opcode::SetGlobal { global, .. }
+        | Opcode::Catch { global } => ensure_global_index(bytecode, global.0, context),
         Opcode::DynGet { field, .. } | Opcode::DynSet { field, .. } => {
             ensure_string_index(bytecode, field.0, context, false)
         }
@@ -338,22 +348,18 @@ fn validate_opcode_refs(
         Opcode::Field { obj, field, .. } | Opcode::SetField { obj, field, .. } => {
             validate_field_ref(bytecode, function, obj.0 as usize, field.0, context)
         }
-        Opcode::GetThis { field, .. }
-        | Opcode::SetThis { field, .. }
-        | Opcode::CallThis { field, .. } => {
+        Opcode::GetThis { field, .. } | Opcode::SetThis { field, .. } => {
             if !function.regs.is_empty() {
                 validate_field_ref(bytecode, function, 0, field.0, context)?;
             }
             Ok(())
         }
-        Opcode::CallMethod { field, args, .. } => {
-            if let Some(obj) = args.first() {
-                validate_field_ref(bytecode, function, obj.0 as usize, field.0, context)?;
-            }
-            Ok(())
-        }
         Opcode::Prefetch { value, field, .. } => {
-            validate_field_ref(bytecode, function, value.0 as usize, field.0, context)
+            if field.0 == 0 {
+                Ok(())
+            } else {
+                validate_field_ref(bytecode, function, value.0 as usize, field.0 - 1, context)
+            }
         }
         _ => Ok(()),
     }
@@ -459,6 +465,11 @@ pub fn type_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
             }
         }
     }
+    collect_constant_value_refs(
+        bytecode,
+        |ty, value| matches!(ty, Type::Type) && value == target,
+        &mut refs,
+    );
     refs
 }
 
@@ -533,10 +544,10 @@ pub fn global_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
     let mut refs = Vec::new();
     for (idx, ty) in bytecode.types.iter().enumerate() {
         match ty {
-            Type::Obj(obj) | Type::Struct(obj) if obj.global.0 != 0 && obj.global.0 == target => {
+            Type::Obj(obj) | Type::Struct(obj) if obj.global.0 == target.saturating_add(1) => {
                 refs.push(format!("type[{}].global", idx));
             }
-            Type::Enum { global, .. } if global.0 != 0 && global.0 == target => {
+            Type::Enum { global, .. } if global.0 == target.saturating_add(1) => {
                 refs.push(format!("type[{}].global", idx));
             }
             _ => {}
@@ -557,10 +568,23 @@ pub fn global_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
                 {
                     refs.push(format!("function[{}].ops[{}]", function_idx, op_idx));
                 }
+                Opcode::Catch { global } if global.0 == target => {
+                    refs.push(format!("function[{}].ops[{}]", function_idx, op_idx));
+                }
                 _ => {}
             }
         }
     }
+    collect_constant_value_refs(
+        bytecode,
+        |ty, value| {
+            !matches!(
+                ty,
+                Type::I32 | Type::Bool | Type::F64 | Type::Bytes | Type::Type
+            ) && value == target
+        },
+        &mut refs,
+    );
     refs
 }
 
@@ -664,9 +688,6 @@ pub fn string_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
         }
     }
     for (idx, function) in bytecode.functions.iter().enumerate() {
-        if function.name.0 == target {
-            refs.push(format!("function[{}].name", idx));
-        }
         if let Some(assigns) = &function.assigns {
             for (assign_idx, (name, _slot)) in assigns.iter().enumerate() {
                 if name.0 == target {
@@ -679,6 +700,9 @@ pub fn string_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
                 Opcode::String { ptr, .. } if ptr.0 == target => {
                     refs.push(format!("function[{}].ops[{}]", idx, op_idx));
                 }
+                Opcode::Bytes { ptr, .. } if bytecode.version < 5 && ptr.0 == target => {
+                    refs.push(format!("function[{}].ops[{}]", idx, op_idx));
+                }
                 Opcode::DynGet { field, .. } | Opcode::DynSet { field, .. }
                     if field.0 == target =>
                 {
@@ -688,6 +712,11 @@ pub fn string_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
             }
         }
     }
+    collect_constant_value_refs(
+        bytecode,
+        |ty, value| matches!(ty, Type::Bytes) && value == target,
+        &mut refs,
+    );
     refs
 }
 
@@ -748,24 +777,69 @@ fn collect_field_string_refs(
 }
 
 pub fn int_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
-    opcode_pool_references(
+    let mut refs = opcode_pool_references(
         bytecode,
         |op| matches!(op, Opcode::Int { ptr, .. } if ptr.0 == target),
-    )
+    );
+    collect_constant_value_refs(
+        bytecode,
+        |ty, value| matches!(ty, Type::I32) && value == target,
+        &mut refs,
+    );
+    refs
 }
 
 pub fn float_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
-    opcode_pool_references(
+    let mut refs = opcode_pool_references(
         bytecode,
         |op| matches!(op, Opcode::Float { ptr, .. } if ptr.0 == target),
-    )
+    );
+    collect_constant_value_refs(
+        bytecode,
+        |ty, value| matches!(ty, Type::F64) && value == target,
+        &mut refs,
+    );
+    refs
 }
 
 pub fn bytes_references(bytecode: &Bytecode, target: usize) -> Vec<String> {
+    if bytecode.version < 5 {
+        return Vec::new();
+    }
     opcode_pool_references(
         bytecode,
         |op| matches!(op, Opcode::Bytes { ptr, .. } if ptr.0 == target),
     )
+}
+
+fn collect_constant_value_refs<F>(bytecode: &Bytecode, matches: F, refs: &mut Vec<String>)
+where
+    F: Fn(&Type, usize) -> bool,
+{
+    let Some(constants) = &bytecode.constants else {
+        return;
+    };
+    for (constant_index, constant) in constants.iter().enumerate() {
+        let Some(object) = bytecode
+            .globals
+            .get(constant.global.0)
+            .and_then(|ty| bytecode.types.get(ty.0))
+            .and_then(Type::get_type_obj)
+        else {
+            continue;
+        };
+        for (field_index, (&value, field)) in constant.fields.iter().zip(&object.fields).enumerate()
+        {
+            if let Some(ty) = bytecode.types.get(field.t.0) {
+                if matches(ty, value) {
+                    refs.push(format!(
+                        "constant[{}].fields[{}]",
+                        constant_index, field_index
+                    ));
+                }
+            }
+        }
+    }
 }
 
 pub fn file_references(bytecode: &Bytecode, target: usize) -> Vec<String> {

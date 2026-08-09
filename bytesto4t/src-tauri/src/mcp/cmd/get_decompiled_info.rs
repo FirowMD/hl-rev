@@ -43,7 +43,9 @@ impl ToolHandler for GetDecompiledInfoHandler {
                     .map_err(|e| McpError::Internal(e.to_string()))?;
                 format!(
                     "{}",
-                    decompiled.value.display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
+                    decompiled
+                        .value
+                        .display(&bytecode, &hlbc_decompiler::fmt::FormatOptions::new(2))
                 )
             }
             "class" => {

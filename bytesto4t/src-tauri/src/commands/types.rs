@@ -1,13 +1,13 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use crate::structgen;
 use hlbc::analysis::find_functions_using_type;
 use hlbc::fmt::EnhancedFmt;
 use hlbc::types::{
-    ConstantDef, EnumConstruct, FunPtr, Native, ObjField, ObjProto, RefFun, RefGlobal, RefString,
-    RefType, Type, TypeFun, TypeObj,
+    ConstantDef, EnumConstruct, FunPtr, Native, ObjField, ObjProto, RefField, RefFun, RefGlobal,
+    RefString, RefType, Type, TypeFun, TypeObj,
 };
-use std::collections::HashMap;
 use std::io::{BufRead, Write};
 use tauri::State;
 
@@ -23,6 +23,7 @@ pub struct NewTypeInput {
     pub fields: Option<Vec<NewFieldInput>>,
     pub protos: Option<Vec<NewProtoInput>>,
     pub constructs: Option<Vec<NewEnumConstructInput>>,
+    pub bindings: Option<Vec<NewBindingInput>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -36,6 +37,12 @@ pub struct NewProtoInput {
     pub name: String,
     pub findex: usize,
     pub pindex: i32,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct NewBindingInput {
+    pub field: usize,
+    pub findex: usize,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -118,6 +125,7 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
         "array" => Type::Array,
         "type" => Type::Type,
         "dynobj" => Type::DynObj,
+        "guid" => Type::Guid,
         "ref" => {
             let inner = input.inner_type.ok_or("ref type requires inner_type")?;
             Type::Ref(RefType(inner))
@@ -182,6 +190,12 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 })
                 .collect();
             let protos = protos?;
+            let bindings = input
+                .bindings
+                .unwrap_or_default()
+                .into_iter()
+                .map(|binding| (RefField(binding.field), RefFun(binding.findex)))
+                .collect();
 
             let type_obj = TypeObj {
                 name,
@@ -190,7 +204,7 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
                 own_fields,
                 fields: Vec::new(),
                 protos,
-                bindings: HashMap::new(),
+                bindings,
             };
 
             if input.type_kind == "obj" {
@@ -254,7 +268,10 @@ pub fn create_type(input: NewTypeInput, app_data: State<Storage>) -> Result<(), 
     };
 
     bytecode_refs::validate_type_refs(bytecode, &new_type, "new type")?;
-    bytecode.types.push(new_type);
+    let mut candidate = bytecode.clone();
+    candidate.types.push(new_type);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -273,6 +290,10 @@ pub fn update_type(
     if index >= bytecode.types.len() {
         return Err(format!("Type index {} out of bounds", index));
     }
+    let existing_bindings = bytecode.types[index]
+        .get_type_obj()
+        .map(|object| object.bindings.clone())
+        .unwrap_or_default();
 
     let updated_type = match input.type_kind.as_str() {
         "void" => Type::Void,
@@ -288,6 +309,7 @@ pub fn update_type(
         "array" => Type::Array,
         "type" => Type::Type,
         "dynobj" => Type::DynObj,
+        "guid" => Type::Guid,
         "ref" => {
             let inner = input.inner_type.ok_or("ref type requires inner_type")?;
             Type::Ref(RefType(inner))
@@ -352,6 +374,12 @@ pub fn update_type(
                 })
                 .collect();
             let protos = protos?;
+            let bindings = input.bindings.map_or(existing_bindings, |bindings| {
+                bindings
+                    .into_iter()
+                    .map(|binding| (RefField(binding.field), RefFun(binding.findex)))
+                    .collect()
+            });
 
             let type_obj = TypeObj {
                 name,
@@ -360,7 +388,7 @@ pub fn update_type(
                 own_fields,
                 fields: Vec::new(),
                 protos,
-                bindings: HashMap::new(),
+                bindings,
             };
 
             if input.type_kind == "obj" {
@@ -424,7 +452,10 @@ pub fn update_type(
     };
 
     bytecode_refs::validate_type_refs(bytecode, &updated_type, "updated type")?;
-    bytecode.types[index] = updated_type;
+    let mut candidate = bytecode.clone();
+    candidate.types[index] = updated_type;
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -445,7 +476,10 @@ pub fn delete_type(index: usize, app_data: State<Storage>) -> Result<(), String>
         bytecode.types.len(),
         bytecode_refs::type_references(bytecode, index),
     )?;
-    bytecode.types.remove(index);
+    let mut candidate = bytecode.clone();
+    candidate.types.remove(index);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -480,7 +514,10 @@ pub fn import_type_json(json_path: &str, app_data: State<Storage>) -> Result<(),
         .join("\n");
     let ty = Type::from_json(json_content.as_str()).map_err(|e| e.to_string())?;
     bytecode_refs::validate_type_refs(bytecode, &ty, "imported type")?;
-    bytecode.add_type(ty);
+    let mut candidate = bytecode.clone();
+    candidate.types.push(ty);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -548,7 +585,10 @@ pub fn create_global(input: NewGlobalInput, app_data: State<Storage>) -> Result<
 
     let global_type = RefType(input.global_type);
     bytecode_refs::validate_global_refs(bytecode, global_type, "new global")?;
-    bytecode.globals.push(global_type);
+    let mut candidate = bytecode.clone();
+    candidate.globals.push(global_type);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -570,7 +610,10 @@ pub fn update_global(
 
     let global_type = RefType(input.global_type);
     bytecode_refs::validate_global_refs(bytecode, global_type, "updated global")?;
-    bytecode.globals[index] = global_type;
+    let mut candidate = bytecode.clone();
+    candidate.globals[index] = global_type;
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -591,7 +634,10 @@ pub fn delete_global(index: usize, app_data: State<Storage>) -> Result<(), Strin
         bytecode.globals.len(),
         bytecode_refs::global_references(bytecode, index),
     )?;
-    bytecode.globals.remove(index);
+    let mut candidate = bytecode.clone();
+    candidate.globals.remove(index);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -627,7 +673,12 @@ pub fn create_native(input: NewNativeInput, app_data: State<Storage>) -> Result<
     let lib = RefString(lib_idx);
     let name = RefString(name_idx);
     let t = RefType(input.signature_type);
-    let findex = RefFun(input.findex.unwrap_or(bytecode.natives.len()));
+    let findex = input
+        .findex
+        .unwrap_or(bytecode.functions.len() + bytecode.natives.len());
+    support::ensure_findex_in_dense_range(bytecode, findex, true).map_err(|e| e.to_string())?;
+    support::ensure_findex_available(bytecode, findex, None, None).map_err(|e| e.to_string())?;
+    let findex = RefFun(findex);
     let native = Native {
         lib,
         name,
@@ -635,7 +686,10 @@ pub fn create_native(input: NewNativeInput, app_data: State<Storage>) -> Result<
         findex,
     };
     bytecode_refs::validate_native_refs(bytecode, &native, "new native")?;
-    bytecode.natives.push(native);
+    let mut candidate = bytecode.clone();
+    candidate.natives.push(native);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -664,7 +718,11 @@ pub fn update_native(
     let lib = RefString(lib_idx);
     let name = RefString(name_idx);
     let t = RefType(input.signature_type);
-    let findex = RefFun(input.findex.unwrap_or(bytecode.natives[index].findex.0));
+    let old_findex = bytecode.natives[index].findex;
+    let findex = RefFun(input.findex.unwrap_or(old_findex.0));
+    if findex != old_findex {
+        return Err("Changing a native findex is not supported".to_string());
+    }
     let native = Native {
         lib,
         name,
@@ -672,7 +730,10 @@ pub fn update_native(
         findex,
     };
     bytecode_refs::validate_native_refs(bytecode, &native, "updated native")?;
-    bytecode.natives[index] = native;
+    let mut candidate = bytecode.clone();
+    candidate.natives[index] = native;
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -694,7 +755,11 @@ pub fn delete_native(index: usize, app_data: State<Storage>) -> Result<(), Strin
         bytecode.natives.len(),
         bytecode_refs::function_references(bytecode, findex),
     )?;
-    bytecode.natives.remove(index);
+    let mut candidate = bytecode.clone();
+    candidate.natives.remove(index);
+    bytecode_refs::compact_function_indexes_after_delete(&mut candidate, findex);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -726,8 +791,14 @@ pub fn create_constant(input: NewConstantInput, app_data: State<Storage>) -> Res
         fields: input.fields,
     };
     bytecode_refs::validate_constant_refs(bytecode, &constant, "new constant")?;
-    let constants = bytecode.constants.get_or_insert_with(Vec::new);
-    constants.push(constant);
+    let mut candidate = bytecode.clone();
+    candidate
+        .constants
+        .as_mut()
+        .ok_or("Bytecode version has no constants table")?
+        .push(constant);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
 
     Ok(())
 }
@@ -755,7 +826,10 @@ pub fn update_constant(
         return Err(format!("Constant index {} out of bounds", index));
     }
 
-    constants[index] = constant;
+    let mut candidate = bytecode.clone();
+    candidate.constants.as_mut().unwrap()[index] = constant;
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
 
     Ok(())
 }
@@ -774,7 +848,10 @@ pub fn delete_constant(index: usize, app_data: State<Storage>) -> Result<(), Str
         return Err(format!("Constant index {} out of bounds", index));
     }
 
-    constants.remove(index);
+    let mut candidate = bytecode.clone();
+    candidate.constants.as_mut().unwrap().remove(index);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -842,9 +919,6 @@ pub fn delete_string(index: usize, app_data: State<Storage>) -> Result<(), Strin
         return Err(format!("String index {} out of bounds", index));
     }
 
-    if index == 0 {
-        return Err("Cannot delete reserved string at index 0".to_string());
-    }
     bytecode_refs::ensure_tail_delete(
         "String",
         index,

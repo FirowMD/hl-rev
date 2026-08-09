@@ -28,12 +28,14 @@ impl ToolHandler for SaveBytecodeHandler {
             .as_ref()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
 
-        let mut stripped = bytecode.clone();
-        stripped.strip();
+        let mut candidate = bytecode.clone();
+        candidate
+            .rebuild_derived_data()
+            .map_err(|e| McpError::Validation(e.to_string()))?;
 
         let mut file =
             std::fs::File::create(file_path).map_err(|e| McpError::Internal(e.to_string()))?;
-        stripped
+        candidate
             .serialize(&mut file)
             .map_err(|e| McpError::Internal(e.to_string()))?;
 
@@ -46,7 +48,7 @@ pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResul
     server
         .add_tool(
             "save_bytecode".to_string(),
-            Some("Save stripped bytecode to file".to_string()),
+            Some("Validate and save bytecode to file without discarding debug data".to_string()),
             json!({
                 "type": "object",
                 "properties": {"file_path": {"type": "string"}},

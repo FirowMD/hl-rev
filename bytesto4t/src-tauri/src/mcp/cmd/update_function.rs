@@ -59,11 +59,6 @@ impl ToolHandler for UpdateFunctionHandler {
                 McpError::Validation("Function name must be a string index".to_string())
             })?
         };
-        if name_idx == 0 {
-            return Err(McpError::Validation(
-                "Function name index 0 is reserved".to_string(),
-            ));
-        }
         if name_idx >= bytecode.strings.len() {
             return Err(McpError::Validation(format!(
                 "Function name index {} is invalid",
@@ -127,7 +122,10 @@ impl ToolHandler for UpdateFunctionHandler {
         support::normalize_function_metadata(bytecode, &mut f)?;
         bytecode_refs::validate_function_refs(bytecode, &f, "updated function", false)
             .map_err(McpError::Validation)?;
-        bytecode.functions[input.index] = f;
+        let mut candidate = bytecode.clone();
+        candidate.functions[input.index] = f;
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
 
         Ok(CallToolResult::text("ok"))
     }

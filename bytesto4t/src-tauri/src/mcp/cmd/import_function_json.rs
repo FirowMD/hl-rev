@@ -48,9 +48,18 @@ impl ToolHandler for ImportFunctionJsonHandler {
         support::normalize_function_metadata(bytecode, &mut function)?;
         support::ensure_findex_in_dense_range(bytecode, function.findex.0, true)?;
         support::ensure_findex_available(bytecode, function.findex.0, None, None)?;
-        bytecode_refs::validate_function_refs(bytecode, &function, "imported function", true)
-            .map_err(McpError::Validation)?;
-        bytecode.add_function(function);
+        bytecode_refs::validate_function_refs_with_pending_fun(
+            bytecode,
+            &function,
+            "imported function",
+            true,
+            Some(function.findex),
+        )
+        .map_err(McpError::Validation)?;
+        let mut candidate = bytecode.clone();
+        candidate.functions.push(function);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

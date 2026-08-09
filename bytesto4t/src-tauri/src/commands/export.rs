@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::fmt::EnhancedFmt;
 use hlbc::types::Function;
 use std::fs;
@@ -20,9 +21,26 @@ pub fn import_function_json(json_path: &str, app_data: State<Storage>) -> Result
         .map(|line| line.map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?
         .join("\n");
-    let function = Function::from_json(json_content.as_str()).map_err(|e| e.to_string())?;
-    bytecode_refs::validate_function_refs(bytecode, &function, "imported function", true)?;
-    bytecode.add_function(function);
+    let mut function = Function::from_json(json_content.as_str()).map_err(|e| e.to_string())?;
+    if function.findex.0 == 0 {
+        function.findex.0 = support::next_findex(bytecode).map_err(|e| e.to_string())?;
+    }
+    support::normalize_function_metadata(bytecode, &mut function).map_err(|e| e.to_string())?;
+    support::ensure_findex_in_dense_range(bytecode, function.findex.0, true)
+        .map_err(|e| e.to_string())?;
+    support::ensure_findex_available(bytecode, function.findex.0, None, None)
+        .map_err(|e| e.to_string())?;
+    bytecode_refs::validate_function_refs_with_pending_fun(
+        bytecode,
+        &function,
+        "imported function",
+        true,
+        Some(function.findex),
+    )?;
+    let mut candidate = bytecode.clone();
+    candidate.functions.push(function);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 

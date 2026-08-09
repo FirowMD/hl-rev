@@ -1,31 +1,27 @@
 use crate::app_data::Storage;
-use crate::bytecode_refs;
 use crate::mcp::cmd::support;
-use hlbc::types::RefType;
 use prism_mcp_rs::prelude::*;
-use serde_json::json;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
 
 #[derive(Clone)]
-pub struct AddGlobalHandler {
+pub struct AddBytesHandler {
     pub app_handle: AppHandle,
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct NewGlobalInput {
-    pub global_type: usize,
+#[derive(serde::Deserialize)]
+struct Input {
+    data: Vec<u8>,
 }
 
 #[async_trait]
-impl ToolHandler for AddGlobalHandler {
+impl ToolHandler for AddBytesHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<CallToolResult> {
-        let input: NewGlobalInput = serde_json::from_value(
+        let input: Input = serde_json::from_value(
             serde_json::to_value(arguments).map_err(|e| McpError::Validation(e.to_string()))?,
         )
         .map_err(|e| McpError::Validation(e.to_string()))?;
-
         let state = self.app_handle.state::<Storage>();
         let mut app_data = state
             .bytecode
@@ -35,19 +31,12 @@ impl ToolHandler for AddGlobalHandler {
             .bytecode
             .as_mut()
             .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
-
-        if input.global_type >= bytecode.types.len() {
-            return Err(McpError::Validation(format!(
-                "Type index {} out of bounds",
-                input.global_type
-            )));
-        }
-
-        let global_type = RefType(input.global_type);
-        bytecode_refs::validate_global_refs(bytecode, global_type, "new global")
-            .map_err(McpError::Validation)?;
         let mut candidate = bytecode.clone();
-        candidate.globals.push(global_type);
+        let (blob, positions) = candidate.bytes.as_mut().ok_or_else(|| {
+            McpError::Validation("Bytecode versions before v5 have no bytes pool".to_string())
+        })?;
+        positions.push(blob.len());
+        blob.extend(input.data);
         support::rebuild_runtime_indexes(&mut candidate)?;
         *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
@@ -55,18 +44,17 @@ impl ToolHandler for AddGlobalHandler {
 }
 
 pub async fn register(server: &mut McpServer, app_handle: AppHandle) -> McpResult<()> {
-    let ah = app_handle;
     server
         .add_tool(
-            "create_global".to_string(),
-            Some("Create a new global".to_string()),
+            "create_bytes".to_string(),
+            Some("Append one entry to a v5 bytes pool".to_string()),
             json!({
                 "type": "object",
-                "properties": { "global_type": { "type": "integer" } },
-                "required": ["global_type"],
+                "properties": {"data": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 255}}},
+                "required": ["data"],
                 "additionalProperties": false
             }),
-            AddGlobalHandler { app_handle: ah },
+            AddBytesHandler { app_handle },
         )
         .await?;
     Ok(())
