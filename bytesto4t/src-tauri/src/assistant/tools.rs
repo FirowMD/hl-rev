@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 const MAX_TOOL_OUTPUT_CHARS: usize = 100_000;
 
@@ -16,7 +17,13 @@ pub struct ToolActivity {
     pub summary: String,
 }
 
-pub fn definitions(allow_bytecode_edits: bool) -> Vec<Value> {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ToolApprovals {
+    pub bytecode_mutations: bool,
+    pub save_bytecode: bool,
+}
+
+pub fn definitions(approvals: ToolApprovals) -> Vec<Value> {
     let indexed_types = [
         "function", "class", "type", "file", "global", "constant", "string", "int", "float",
         "native", "bytes",
@@ -145,13 +152,15 @@ pub fn definitions(allow_bytecode_edits: bool) -> Vec<Value> {
         "Rebuild and validate the loaded in-memory bytecode without changing or saving it.",
         empty_schema(),
     ));
-    if allow_bytecode_edits {
+    if approvals.bytecode_mutations {
         definitions.extend(function_tools());
         definitions.extend(type_tools());
         definitions.extend(pool_tools());
+    }
+    if approvals.save_bytecode {
         definitions.push(tool(
             "save_bytecode",
-            "Validate and save the loaded bytecode beside its source using a .patched filename. This does not open a dialog or overwrite the loaded source, but it replaces an existing patched output.",
+            "Validate the loaded bytecode and ask the user where to save it with a native dialog. Existing files require confirmation before atomic replacement.",
             empty_schema(),
         ));
     }
@@ -444,6 +453,16 @@ pub fn changes_loaded_bytecode(name: &str) -> bool {
     name.starts_with("create_") || name.starts_with("update_") || name.starts_with("delete_")
 }
 
+fn approval_error(name: &str, approvals: ToolApprovals) -> Option<String> {
+    if changes_loaded_bytecode(name) && !approvals.bytecode_mutations {
+        Some("Bytecode mutation was not approved for this user request.".to_string())
+    } else if name == "save_bytecode" && !approvals.save_bytecode {
+        Some("Saving bytecode requires separate approval for this user request.".to_string())
+    } else {
+        None
+    }
+}
+
 fn argument_map(arguments: &Value) -> Result<HashMap<String, Value>, String> {
     arguments
         .as_object()
@@ -456,10 +475,10 @@ pub async fn execute(
     app_handle: AppHandle,
     name: &str,
     arguments: Value,
-    allow_bytecode_edits: bool,
+    approvals: ToolApprovals,
 ) -> (String, ToolActivity) {
-    let result = if is_mutating(name) && !allow_bytecode_edits {
-        Err("Bytecode editing is disabled in Assistant settings.".to_string())
+    let result = if let Some(error) = approval_error(name, approvals) {
+        Err(error)
     } else {
         match argument_map(&arguments) {
             Ok(arguments) => dispatch(app_handle, name, arguments)
@@ -716,7 +735,7 @@ async fn dispatch(
                 .await
         }
         "validate_bytecode" => validate_bytecode(&app_handle),
-        "save_bytecode" => save_bytecode_to_patched_file(&app_handle).await,
+        "save_bytecode" => save_bytecode_with_dialog(&app_handle).await,
         _ => return Err(format!("Unknown assistant tool: {name}")),
     };
     result.map_err(|error| error.to_string())
@@ -742,40 +761,77 @@ fn validate_bytecode(app_handle: &AppHandle) -> McpResult<CallToolResult> {
     Ok(CallToolResult::text("ok"))
 }
 
-async fn save_bytecode_to_patched_file(app_handle: &AppHandle) -> McpResult<CallToolResult> {
-    let target_path = {
+async fn save_bytecode_with_dialog(app_handle: &AppHandle) -> McpResult<CallToolResult> {
+    let (directory, file_name) = {
         let state = app_handle.state::<Storage>();
         let app_data = state
             .bytecode
             .lock()
             .map_err(|error| McpError::Internal(error.to_string()))?;
-        app_data
-            .bytecode
-            .as_ref()
-            .ok_or_else(|| McpError::Validation("bytecode not loaded".to_string()))?;
-        app_data.target_file_path.clone()
+        let target_path = Path::new(&app_data.target_file_path);
+        let file_name = patched_file_name(target_path).ok_or_else(|| {
+            McpError::Validation("Loaded bytecode has no valid source file name".to_string())
+        })?;
+        (
+            target_path
+                .parent()
+                .filter(|path| !path.as_os_str().is_empty())
+                .map(Path::to_path_buf),
+            file_name,
+        )
     };
-    let output_path = patched_file_path(Path::new(&target_path)).ok_or_else(|| {
-        McpError::Validation("Loaded bytecode has no valid source file name".to_string())
-    })?;
-    let file_path = output_path
-        .to_str()
-        .ok_or_else(|| McpError::Validation("Patched save path is not valid UTF-8".to_string()))?;
-    let arguments = HashMap::from([("file_path".to_string(), json!(file_path))]);
-    crate::mcp::cmd::save_bytecode::SaveBytecodeHandler {
-        app_handle: app_handle.clone(),
-    }
-    .call(arguments)
-    .await?;
+
+    let dialog_handle = app_handle.clone();
+    let save_target =
+        tokio::task::spawn_blocking(move || -> Result<Option<(PathBuf, bool)>, String> {
+            let mut dialog = dialog_handle
+                .dialog()
+                .file()
+                .set_title("Save patched bytecode")
+                .set_file_name(file_name);
+            if let Some(directory) = directory {
+                dialog = dialog.set_directory(directory);
+            }
+            let Some(file_path) = dialog.blocking_save_file() else {
+                return Ok(None);
+            };
+            let file_path = file_path
+                .into_path()
+                .map_err(|error| format!("Selected save path is invalid: {error}"))?;
+            let overwrite_confirmed = file_path.exists();
+            if overwrite_confirmed {
+                let confirmed = dialog_handle
+                    .dialog()
+                    .message(format!(
+                        "{} already exists. Replace it?",
+                        file_path.display()
+                    ))
+                    .title("Confirm overwrite")
+                    .kind(MessageDialogKind::Warning)
+                    .buttons(MessageDialogButtons::YesNo)
+                    .blocking_show();
+                if !confirmed {
+                    return Ok(None);
+                }
+            }
+            Ok(Some((file_path, overwrite_confirmed)))
+        })
+        .await
+        .map_err(|error| McpError::Internal(format!("Save dialog task failed: {error}")))?
+        .map_err(McpError::Internal)?;
+
+    let Some((output_path, overwrite_confirmed)) = save_target else {
+        return Ok(CallToolResult::text(
+            "Save cancelled by user; no file was written.",
+        ));
+    };
+    let serialized = crate::mcp::cmd::save_bytecode::serialize_loaded_bytecode(app_handle)?;
+    crate::mcp::cmd::save_bytecode::atomic_write(&output_path, &serialized, overwrite_confirmed)?;
 
     Ok(CallToolResult::text(format!(
         "Saved bytecode to {}",
         output_path.display()
     )))
-}
-
-fn patched_file_path(path: &Path) -> Option<PathBuf> {
-    Some(path.with_file_name(patched_file_name(path)?))
 }
 
 fn patched_file_name(path: &Path) -> Option<String> {
@@ -821,10 +877,13 @@ mod tests {
 
     #[test]
     fn assistant_exposes_a_complete_patch_workflow() {
-        let names: Vec<_> = definitions(true)
-            .into_iter()
-            .filter_map(|tool| tool.get("name").and_then(Value::as_str).map(str::to_string))
-            .collect();
+        let names: Vec<_> = definitions(ToolApprovals {
+            bytecode_mutations: true,
+            save_bytecode: true,
+        })
+        .into_iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str).map(str::to_string))
+        .collect();
         for required in [
             "get_function_full_info",
             "update_function",
@@ -848,9 +907,12 @@ mod tests {
 
     #[test]
     fn every_bytecode_mutation_tool_is_classified() {
-        for name in definitions(true)
-            .into_iter()
-            .filter_map(|tool| tool.get("name").and_then(Value::as_str).map(str::to_string))
+        for name in definitions(ToolApprovals {
+            bytecode_mutations: true,
+            save_bytecode: true,
+        })
+        .into_iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str).map(str::to_string))
         {
             if name.starts_with("create_")
                 || name.starts_with("update_")
@@ -865,28 +927,47 @@ mod tests {
     }
 
     #[test]
-    fn mutation_tools_are_hidden_when_editing_is_disabled() {
-        assert!(definitions(false).into_iter().all(|tool| tool
-            .get("name")
-            .and_then(Value::as_str)
-            .is_none_or(|name| !is_mutating(name))));
+    fn request_approvals_are_independent_and_default_to_denied() {
+        assert!(definitions(ToolApprovals::default())
+            .into_iter()
+            .all(|tool| tool
+                .get("name")
+                .and_then(Value::as_str)
+                .is_none_or(|name| !is_mutating(name))));
+        assert!(approval_error("update_function", ToolApprovals::default()).is_some());
+        assert!(approval_error("save_bytecode", ToolApprovals::default()).is_some());
+
+        let mutation_only = ToolApprovals {
+            bytecode_mutations: true,
+            save_bytecode: false,
+        };
+        assert!(approval_error("update_function", mutation_only).is_none());
+        assert!(approval_error("save_bytecode", mutation_only).is_some());
+
+        let save_only = ToolApprovals {
+            bytecode_mutations: false,
+            save_bytecode: true,
+        };
+        assert!(approval_error("update_function", save_only).is_some());
+        assert!(approval_error("save_bytecode", save_only).is_none());
+        assert!(approval_error("get_function_list", ToolApprovals::default()).is_none());
     }
 
     #[test]
-    fn patched_save_path_is_beside_source_and_preserves_extension() {
+    fn patched_save_name_preserves_extension() {
         assert_eq!(
-            patched_file_path(Path::new("bytecode/game.hl")),
-            Some(PathBuf::from("bytecode/game.patched.hl"))
+            patched_file_name(Path::new("bytecode/game.hl")),
+            Some("game.patched.hl".to_string())
         );
         assert_eq!(
-            patched_file_path(Path::new("hlboot.dat")),
-            Some(PathBuf::from("hlboot.patched.dat"))
+            patched_file_name(Path::new("hlboot.dat")),
+            Some("hlboot.patched.dat".to_string())
         );
         assert_eq!(
-            patched_file_path(Path::new("bytecode")),
-            Some(PathBuf::from("bytecode.patched"))
+            patched_file_name(Path::new("bytecode")),
+            Some("bytecode.patched".to_string())
         );
-        assert_eq!(patched_file_path(Path::new("")), None);
+        assert_eq!(patched_file_name(Path::new("")), None);
     }
 
     #[test]

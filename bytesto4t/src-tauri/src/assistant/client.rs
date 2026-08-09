@@ -30,6 +30,10 @@ pub struct AssistantMessage {
 #[serde(rename_all = "camelCase")]
 pub struct AssistantChatRequest {
     pub messages: Vec<AssistantMessage>,
+    #[serde(default)]
+    pub approve_bytecode_mutations: bool,
+    #[serde(default)]
+    pub approve_bytecode_save: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -114,16 +118,17 @@ async fn discover_model_catalog(
                 (status, body)
             }
             Err(error) if is_access_denied(&error) => {
-                state
-                    .external_network_required
-                    .store(true, Ordering::SeqCst);
-                external_model_request(config, credentials, &url)
+                let response = external_model_request(config, credentials, &url)
                     .await
                     .map_err(|helper_error| {
                         format!(
-                            "ChatGPT model discovery failed: {error}. External VPN network helper failed: {helper_error}"
+                            "ChatGPT model discovery failed: {error}. Configured external HTTP helper failed: {helper_error}"
                         )
-                    })?
+                    })?;
+                state
+                    .external_network_required
+                    .store(true, Ordering::SeqCst);
+                response
             }
             Err(error) => {
                 return Err(network_error("ChatGPT model discovery failed", error));
@@ -227,6 +232,10 @@ pub async fn chat(
     on_event: Channel<AssistantStreamEvent>,
 ) -> Result<AssistantReply, String> {
     validate_messages(&request.messages)?;
+    let approvals = tools::ToolApprovals {
+        bytecode_mutations: config.allow_bytecode_edits && request.approve_bytecode_mutations,
+        save_bytecode: config.allow_bytecode_edits && request.approve_bytecode_save,
+    };
     let generation = state.generation.fetch_add(1, Ordering::SeqCst) + 1;
     let credentials = valid_credentials(&config).await?;
     let configured_model = config.model.trim();
@@ -281,6 +290,7 @@ pub async fn chat(
             &model,
             &instructions,
             &input,
+            approvals,
             state,
             generation,
             true,
@@ -337,13 +347,7 @@ pub async fn chat(
                 };
                 (output, activity)
             } else {
-                tools::execute(
-                    app_handle.clone(),
-                    &call.name,
-                    arguments,
-                    config.allow_bytecode_edits,
-                )
-                .await
+                tools::execute(app_handle.clone(), &call.name, arguments, approvals).await
             };
             if activity.success && tools::changes_loaded_bytecode(&call.name) {
                 bytecode_revision += 1;
@@ -387,6 +391,7 @@ pub async fn chat(
         &model,
         &instructions,
         &input,
+        approvals,
         state,
         generation,
         false,
@@ -541,13 +546,15 @@ async fn send_response_request(
     model: &str,
     instructions: &str,
     input: &[Value],
+    approvals: tools::ToolApprovals,
     state: &AssistantState,
     generation: u64,
     allow_tools: bool,
     on_event: Option<&Channel<AssistantStreamEvent>>,
 ) -> Result<CollectedResponse, String> {
     let client = build_client(config, 180)?;
-    let payload = build_response_payload(config, model, instructions, input, allow_tools);
+    let payload =
+        build_response_payload(config, model, instructions, input, approvals, allow_tools);
     let url = format!("{CODEX_API_BASE_URL}/responses");
     if state.external_network_required.load(Ordering::SeqCst) {
         return external_response_request(
@@ -569,10 +576,7 @@ async fn send_response_request(
     {
         Ok(response) => response,
         Err(error) if is_access_denied(&error) => {
-            state
-                .external_network_required
-                .store(true, Ordering::SeqCst);
-            return external_response_request(
+            let response = external_response_request(
                 config,
                 credentials,
                 &url,
@@ -582,6 +586,12 @@ async fn send_response_request(
                 on_event,
             )
             .await;
+            if response.is_ok() {
+                state
+                    .external_network_required
+                    .store(true, Ordering::SeqCst);
+            }
+            return response;
         }
         Err(error) => {
             return Err(network_error("ChatGPT assistant request failed", error));
@@ -600,6 +610,7 @@ fn build_response_payload(
     model: &str,
     instructions: &str,
     input: &[Value],
+    approvals: tools::ToolApprovals,
     allow_tools: bool,
 ) -> Value {
     let mut payload = json!({
@@ -610,7 +621,7 @@ fn build_response_payload(
         "stream": true
     });
     if allow_tools {
-        payload["tools"] = json!(tools::definitions(config.allow_bytecode_edits));
+        payload["tools"] = json!(tools::definitions(approvals));
         payload["tool_choice"] = json!("auto");
         payload["parallel_tool_calls"] = json!(true);
     } else {
@@ -1024,8 +1035,14 @@ mod tests {
         let config = AssistantConfig::default();
         let input = vec![json!({"role": "user", "content": "inspect"})];
 
-        let tool_payload =
-            build_response_payload(&config, "gpt-test", "instructions", &input, true);
+        let tool_payload = build_response_payload(
+            &config,
+            "gpt-test",
+            "instructions",
+            &input,
+            tools::ToolApprovals::default(),
+            true,
+        );
         assert_eq!(tool_payload["parallel_tool_calls"], true);
         assert_eq!(tool_payload["tool_choice"], "auto");
         assert_eq!(
@@ -1039,21 +1056,53 @@ mod tests {
             .iter()
             .all(|tool| { tool.get("name").and_then(Value::as_str) != Some("update_function") }));
 
-        let mut editable_config = config.clone();
-        editable_config.allow_bytecode_edits = true;
-        let editable_payload =
-            build_response_payload(&editable_config, "gpt-test", "instructions", &input, true);
+        let editable_payload = build_response_payload(
+            &config,
+            "gpt-test",
+            "instructions",
+            &input,
+            tools::ToolApprovals {
+                bytecode_mutations: true,
+                save_bytecode: false,
+            },
+            true,
+        );
         assert!(editable_payload["tools"]
             .as_array()
             .unwrap()
             .iter()
             .any(|tool| { tool.get("name").and_then(Value::as_str) == Some("update_function") }));
 
-        let final_payload =
-            build_response_payload(&config, "gpt-test", "instructions", &input, false);
+        assert!(editable_payload["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|tool| { tool.get("name").and_then(Value::as_str) != Some("save_bytecode") }));
+
+        let final_payload = build_response_payload(
+            &config,
+            "gpt-test",
+            "instructions",
+            &input,
+            tools::ToolApprovals {
+                bytecode_mutations: true,
+                save_bytecode: true,
+            },
+            false,
+        );
         assert_eq!(final_payload["parallel_tool_calls"], false);
         assert_eq!(final_payload["tool_choice"], "none");
         assert!(final_payload["tools"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn chat_request_approvals_default_to_denied() {
+        let request: AssistantChatRequest = serde_json::from_value(json!({
+            "messages": [{"role": "user", "content": "inspect"}]
+        }))
+        .unwrap();
+        assert!(!request.approve_bytecode_mutations);
+        assert!(!request.approve_bytecode_save);
     }
 
     #[test]

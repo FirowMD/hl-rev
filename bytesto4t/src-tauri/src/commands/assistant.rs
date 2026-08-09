@@ -1,11 +1,11 @@
 use crate::app_config::AssistantConfig;
 use crate::app_data::Storage;
-use crate::assistant::{auth, client, history, network, AssistantState};
+use crate::assistant::{auth, client, external_http, history, network, AssistantState};
 use serde::Serialize;
 use std::sync::atomic::Ordering;
 use tauri::{ipc::Channel, AppHandle, Manager, State};
 
-pub const PRIVACY_DISCLOSURE_VERSION: u32 = 1;
+pub const PRIVACY_DISCLOSURE_VERSION: u32 = 2;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -15,6 +15,7 @@ pub struct AssistantStatus {
     models: Vec<String>,
     privacy_disclosure_accepted: bool,
     privacy_disclosure_version: u32,
+    external_helper_configured: bool,
 }
 
 fn current_settings(app_handle: &AppHandle) -> Result<AssistantConfig, String> {
@@ -29,6 +30,7 @@ fn status(app_handle: &AppHandle, models: Vec<String>) -> Result<AssistantStatus
         authenticated: auth::load_credentials()?.is_some(),
         privacy_disclosure_accepted: privacy_accepted(&settings),
         privacy_disclosure_version: PRIVACY_DISCLOSURE_VERSION,
+        external_helper_configured: external_http::helper_configured(),
         settings,
         models,
     })

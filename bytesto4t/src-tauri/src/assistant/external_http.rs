@@ -2,7 +2,7 @@ use super::network::validate_proxy_url;
 use super::redaction::redact;
 use crate::app_config::AssistantConfig;
 use std::io::Write;
-use std::path::Path;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 const STATUS_MARKER: &str = "__BYTESTO4T_HTTP_STATUS__:";
@@ -21,6 +21,7 @@ pub async fn request(
     config: &AssistantConfig,
     timeout_seconds: u64,
 ) -> Result<ExternalHttpResponse, String> {
+    let helper = configured_helper_path()?;
     let curl_config = build_curl_config(
         method,
         url,
@@ -29,7 +30,7 @@ pub async fn request(
         config,
         timeout_seconds,
     )?;
-    tokio::task::spawn_blocking(move || run_curl(curl_config))
+    tokio::task::spawn_blocking(move || run_curl(curl_config, helper))
         .await
         .map_err(|_| "External network helper task failed.".to_string())?
 }
@@ -100,72 +101,73 @@ fn push_option(output: &mut String, name: &str, value: &str) {
     output.push_str("\"\n");
 }
 
-fn helper_commands() -> Vec<String> {
-    let mut commands = Vec::new();
-    if let Ok(configured) = std::env::var("BYTESTO4T_HTTP_HELPER") {
-        let configured = configured.trim();
-        if !configured.is_empty() {
-            commands.push(configured.to_string());
-        }
-    }
-    if cfg!(windows) {
-        commands.push("curl.exe".to_string());
-    } else {
-        commands.push("curl".to_string());
-    }
-    commands.dedup();
-    commands
+pub(crate) fn helper_configured() -> bool {
+    std::env::var("BYTESTO4T_HTTP_HELPER").is_ok_and(|value| !value.trim().is_empty())
 }
 
-fn run_curl(config: String) -> Result<ExternalHttpResponse, String> {
-    let mut failures = Vec::new();
-    for executable in helper_commands() {
-        let helper = Path::new(&executable)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .map(redact)
-            .unwrap_or_else(|| "configured helper".to_string());
-        let mut command = Command::new(&executable);
-        command
-            .args(["--config", "-"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        hide_window(&mut command);
+fn validate_helper_path(configured: &str) -> Result<PathBuf, String> {
+    let configured = configured.trim();
+    let path = PathBuf::from(configured);
+    if configured.is_empty() {
+        return Err("BYTESTO4T_HTTP_HELPER is not configured.".to_string());
+    }
+    if !path.is_absolute() {
+        return Err("BYTESTO4T_HTTP_HELPER must be an absolute executable path.".to_string());
+    }
+    if !path.is_file() {
+        return Err("BYTESTO4T_HTTP_HELPER does not point to a file.".to_string());
+    }
+    path.canonicalize()
+        .map_err(|_| "BYTESTO4T_HTTP_HELPER could not be resolved.".to_string())
+}
 
-        let mut child = match command.spawn() {
-            Ok(child) => child,
-            Err(_) => {
-                failures.push(format!("{helper}: could not start"));
-                continue;
-            }
-        };
-        let write_result = child
-            .stdin
-            .take()
-            .ok_or_else(|| "External network helper stdin was unavailable.".to_string())?
-            .write_all(config.as_bytes());
-        if write_result.is_err() {
-            let _ = child.kill();
-            let _ = child.wait();
-            failures.push(format!("{helper}: could not receive the request via stdin"));
-            continue;
-        }
+fn configured_helper_path() -> Result<PathBuf, String> {
+    let configured = std::env::var("BYTESTO4T_HTTP_HELPER").map_err(|_| {
+        "External HTTP fallback is disabled. Set BYTESTO4T_HTTP_HELPER to the absolute path of a trusted curl-compatible executable to opt in.".to_string()
+    })?;
+    validate_helper_path(&configured)
+}
 
-        let output = child.wait_with_output().map_err(|_| {
-            "External network helper failed while waiting for completion.".to_string()
-        })?;
-        if !output.status.success() {
-            failures.push(format!("{helper}: exited with status {}", output.status));
-            continue;
-        }
-        return parse_output(&output.stdout);
+fn run_curl(config: String, executable: PathBuf) -> Result<ExternalHttpResponse, String> {
+    let helper = executable
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(redact)
+        .unwrap_or_else(|| "configured helper".to_string());
+    let mut command = Command::new(&executable);
+    command
+        .args(["--config", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_window(&mut command);
+
+    let mut child = command
+        .spawn()
+        .map_err(|_| format!("External network helper {helper} could not start."))?;
+    let write_result = child
+        .stdin
+        .take()
+        .ok_or_else(|| "External network helper stdin was unavailable.".to_string())?
+        .write_all(config.as_bytes());
+    if write_result.is_err() {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(format!(
+            "External network helper {helper} could not receive the request via stdin."
+        ));
     }
 
-    Err(format!(
-        "No external curl transport succeeded. Set BYTESTO4T_HTTP_HELPER to a curl-compatible executable. {}",
-        failures.join("; ")
-    ))
+    let output = child
+        .wait_with_output()
+        .map_err(|_| "External network helper failed while waiting for completion.".to_string())?;
+    if !output.status.success() {
+        return Err(format!(
+            "External network helper {helper} exited with status {}.",
+            output.status
+        ));
+    }
+    parse_output(&output.stdout)
 }
 
 fn parse_output(output: &[u8]) -> Result<ExternalHttpResponse, String> {
@@ -211,9 +213,13 @@ mod tests {
         .unwrap();
         assert!(config.contains("Authorization: Bearer secret"));
         assert!(config.contains("data-binary"));
-        assert!(!helper_commands()
-            .iter()
-            .any(|value| value.contains("secret")));
+        assert!(!config.lines().next().unwrap().contains("secret"));
+    }
+
+    #[test]
+    fn helper_requires_an_explicit_absolute_file_path() {
+        let error = validate_helper_path("curl").unwrap_err();
+        assert!(error.contains("absolute"));
     }
 
     #[test]
@@ -241,9 +247,15 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn curl_helper_round_trips_through_local_http_server() {
-        if Command::new("curl.exe").arg("--version").output().is_err() {
+        let where_output = Command::new("where.exe").arg("curl.exe").output().unwrap();
+        if !where_output.status.success() {
             return;
         }
+        let executable = String::from_utf8_lossy(&where_output.stdout)
+            .lines()
+            .next()
+            .map(PathBuf::from)
+            .unwrap();
 
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
@@ -275,7 +287,7 @@ mod tests {
             5,
         )
         .unwrap();
-        let response = run_curl(config).unwrap();
+        let response = run_curl(config, executable).unwrap();
         server.join().unwrap();
         assert_eq!(response.status, 200);
         assert_eq!(response.body, "ok");

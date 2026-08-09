@@ -25,12 +25,11 @@ impl ToolHandler for GetFunctionListHandler {
 
         let mut function_names = Vec::new();
         for (index, function) in bytecode.functions.iter().enumerate() {
-            function_names.push(
-                function.name(&bytecode).to_string()
-                    + &function.findex.to_string()
-                    + "@"
-                    + &index.to_string(),
-            );
+            function_names.push(crate::commands::functions::format_function_entry(
+                &function.name(&bytecode).to_string(),
+                function.findex.0,
+                index,
+            ));
         }
 
         let mut result = CallToolResult::text(function_names.join("\n"));

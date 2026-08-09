@@ -6,6 +6,10 @@ use hlbc::types::{Function, RefFun, RefString, RefType};
 use std::io::BufRead;
 use tauri::State;
 
+pub(crate) fn format_function_entry(name: &str, findex: usize, index: usize) -> String {
+    format!("{name}@{findex}@{index}")
+}
+
 #[tauri::command]
 pub fn get_function_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
     let bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
@@ -17,12 +21,11 @@ pub fn get_function_list(app_data: State<Storage>) -> Result<Vec<String>, String
     let mut function_names = Vec::new();
     let mut index = 0;
     for function in functions {
-        function_names.push(
-            function.name(&bytecode).to_string()
-                + &function.findex.to_string()
-                + "@"
-                + &index.to_string(),
-        );
+        function_names.push(format_function_entry(
+            &function.name(&bytecode).to_string(),
+            function.findex.0,
+            index,
+        ));
         index += 1;
     }
 
@@ -75,10 +78,7 @@ pub struct NewFunctionInput {
 }
 
 #[tauri::command]
-pub fn create_function(
-    input: NewFunctionInput,
-    app_data: State<Storage>,
-) -> Result<(), String> {
+pub fn create_function(input: NewFunctionInput, app_data: State<Storage>) -> Result<(), String> {
     let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
     let bytecode = bytecode_store
         .bytecode
@@ -278,10 +278,11 @@ pub fn get_function_name_by_index(
         return Err("Function index out of bounds".to_string());
     }
 
-    Ok(functions[index].name(&bytecode).to_string()
-        + &functions[index].findex.to_string()
-        + "@"
-        + &index.to_string())
+    Ok(format_function_entry(
+        &functions[index].name(&bytecode).to_string(),
+        functions[index].findex.0,
+        index,
+    ))
 }
 
 #[tauri::command]

@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { save, open, message } from "@tauri-apps/plugin-dialog";
   import { BaseDirectory, readTextFile, writeFile } from "@tauri-apps/plugin-fs";
+  import { parseFunctionListEntry } from "$lib/function-list";
 
   interface FileStatus {
     name: string;
@@ -28,7 +29,7 @@
           if (findex !== -1) {
             var func = "";
             for (var i = 0; i < functionList.length; i++) {
-              var funcIndex = parseInt(functionList[i].split('@')[1]);
+              var funcIndex = parseFunctionListEntry(functionList[i]).findex;
               if (funcIndex === findex) {
                 func = functionList[i];
                 break;
@@ -156,7 +157,7 @@
         if (findex !== -1) {
           var func = "";
           for (var i = 0; i < functionList.length; i++) {
-            var funcIndex = parseInt(functionList[i].split('@')[1]);
+            var funcIndex = parseFunctionListEntry(functionList[i]).findex;
             if (funcIndex === findex) {
               func = functionList[i];
               break;

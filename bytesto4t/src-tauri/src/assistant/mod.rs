@@ -1,6 +1,6 @@
 pub mod auth;
 pub mod client;
-mod external_http;
+pub(crate) mod external_http;
 pub mod history;
 pub(crate) mod network;
 mod redaction;

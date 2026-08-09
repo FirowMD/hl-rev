@@ -78,6 +78,7 @@
     models: string[];
     privacyDisclosureAccepted: boolean;
     privacyDisclosureVersion: number;
+    externalHelperConfigured: boolean;
   };
 
   type AssistantReply = {
@@ -136,6 +137,9 @@
   let privacyDisclosureAccepted = $state(false);
   let privacyDisclosureVersion = $state(0);
   let acceptingPrivacy = $state(false);
+  let externalHelperConfigured = $state(false);
+  let approveBytecodeMutations = $state(false);
+  let approveBytecodeSave = $state(false);
   let lastSavedDisableTls = $state(false);
   let tlsBypassConfirmed = $state(false);
   let historyBusy = $state(false);
@@ -277,6 +281,7 @@
       models = status.models;
       privacyDisclosureAccepted = status.privacyDisclosureAccepted;
       privacyDisclosureVersion = status.privacyDisclosureVersion;
+      externalHelperConfigured = status.externalHelperConfigured;
       privacyDisclosureOpen = !privacyDisclosureAccepted;
       if (authenticated && privacyDisclosureAccepted) await refreshModels(false);
     } catch {
@@ -478,12 +483,19 @@
     busy = true;
     resetLiveState();
     const sequence = ++requestSequence;
+    const requestApprovals = {
+      approveBytecodeMutations: settings.allow_bytecode_edits && approveBytecodeMutations,
+      approveBytecodeSave: settings.allow_bytecode_edits && approveBytecodeSave
+    };
+    approveBytecodeMutations = false;
+    approveBytecodeSave = false;
     const onEvent = new Channel<AssistantStreamEvent>();
     onEvent.onmessage = (event) => handleStreamEvent(event, sequence);
     try {
       const reply = await invoke<AssistantReply>("send_assistant_message", {
         request: {
-          messages: requestMessages.map(({ role, content }) => ({ role, content }))
+          messages: requestMessages.map(({ role, content }) => ({ role, content })),
+          ...requestApprovals
         },
         onEvent
       });
@@ -762,7 +774,7 @@
         <div class="toggle-group">
           <label class="toggle-label warning-toggle">
             <input type="checkbox" bind:checked={settings.allow_bytecode_edits} />
-            <span>Allow bytecode edits</span>
+            <span>Enable bytecode tools</span>
           </label>
           <label class="toggle-label">
             <input type="checkbox" bind:checked={settings.bypass_proxy} />
@@ -1025,6 +1037,18 @@
       </div>
 
       <footer class="composer-wrap shrink-0 border-t border-surface-700 p-2">
+        {#if settings.allow_bytecode_edits}
+          <div class="request-approvals mx-auto flex w-full max-w-4xl flex-wrap items-center gap-4 pb-2">
+            <label class="toggle-label warning-toggle">
+              <input type="checkbox" bind:checked={approveBytecodeMutations} disabled={busy} />
+              <span>Approve edits for this request</span>
+            </label>
+            <label class="toggle-label warning-toggle">
+              <input type="checkbox" bind:checked={approveBytecodeSave} disabled={busy} />
+              <span>Approve saving for this request</span>
+            </label>
+          </div>
+        {/if}
         <div class="composer mx-auto flex w-full max-w-4xl items-end gap-2">
           <textarea
             bind:value={prompt}
@@ -1086,10 +1110,18 @@
             and are not written to disk.
           </li>
         {/if}
-        <li>
-          A configured external HTTP helper receives OAuth headers and request bodies through its
-          standard input. It must be a fully trusted executable.
-        </li>
+        {#if externalHelperConfigured}
+          <li>
+            BYTESTO4T_HTTP_HELPER is configured. If direct networking is denied, bytesto4t may run
+            that trusted executable and send OAuth headers and request bodies through its standard
+            input.
+          </li>
+        {:else}
+          <li>
+            No external HTTP helper is configured. bytesto4t will not search for or automatically
+            run curl from the system PATH.
+          </li>
+        {/if}
         <li>Custom proxies can observe connection metadata.</li>
         <li>
           Disabling TLS verification permits interception of credentials and analyzed content.
@@ -1445,6 +1477,12 @@
 
   .toggle-label input {
     accent-color: var(--color-primary-500);
+  }
+
+  .request-approvals {
+    min-height: 1.4rem;
+    color: var(--color-surface-400);
+    font-size: 0.7rem;
   }
 
   .warning-toggle {

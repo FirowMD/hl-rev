@@ -372,7 +372,7 @@ async fn post_token_form(
             .await
             .map_err(|helper_error| {
                 format!(
-                    "{context}: {direct_error}. External VPN network helper failed: {helper_error}"
+                    "{context}: {direct_error}. Configured external HTTP helper failed: {helper_error}"
                 )
             })?;
             Ok((response.status, response.body))
