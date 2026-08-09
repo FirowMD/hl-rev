@@ -28,7 +28,8 @@
         { key: "dyn", label: "Dynamic", description: "Dynamic type" },
         { key: "array", label: "Array", description: "Array type" },
         { key: "type", label: "Type", description: "Type object" },
-        { key: "dynobj", label: "DynObj", description: "Dynamic object" }
+        { key: "dynobj", label: "DynObj", description: "Dynamic object" },
+        { key: "guid", label: "Guid", description: "Opaque 64-bit GUID" }
       ]
     },
     composite: {

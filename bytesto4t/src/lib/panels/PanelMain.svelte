@@ -8,6 +8,7 @@
   import ViewDecompiler from "../elems/ViewDecompiler.svelte";
   import ViewTools from "../elems/ViewTools.svelte";
   import ViewSettings from "../elems/ViewSettings.svelte";
+  import ViewAssistant from "../elems/ViewAssistant.svelte";
   import ViewConstructor from "../elems/ViewConstructor.svelte";
   import { functionsRefreshKey, functionToEdit, typeToEdit, globalToEdit, nativeToEdit, constantToEdit, stringToEdit, intToEdit, floatToEdit, mainPanelTab, stringsRefreshKey, intsRefreshKey, floatsRefreshKey } from "../elems/types";
 
@@ -19,6 +20,7 @@
     { id: 'inspector', label: 'Inspector', component: ViewInspector },
     { id: 'disassembler', label: 'Disassembler', component: ViewDisassembler },
     { id: 'decompiler', label: 'Decompiler', component: ViewDecompiler },
+    { id: 'assistant', label: 'Assistant', component: ViewAssistant },
     { id: 'constructor', label: 'Constructor', component: ViewConstructor },
     { id: 'tools', label: 'Tools', component: ViewTools },
     { id: 'settings', label: 'Settings', component: ViewSettings }
@@ -26,6 +28,10 @@
 
   onMount(() => {
     setContext('tools', { elementIndex: null, references: [] });
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab && tabs.some((tab) => tab.id === requestedTab)) {
+      mainPanelTab.set(requestedTab);
+    }
   });
 
   // Handle edit requests from external sources (e.g., from lists in other components)

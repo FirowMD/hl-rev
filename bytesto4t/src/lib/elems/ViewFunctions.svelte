@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount, createEventDispatcher } from "svelte";
+  import { parseFunctionListEntry } from "$lib/function-list";
   export let active: boolean = false;
   let alreadyLoaded = false;
   import VirtualList from 'svelte-tiny-virtual-list';
@@ -30,9 +31,7 @@
     }
 
     functionList.sort((a, b) => {
-      const aNumber = parseInt(a.split("@")[1]);
-      const bNumber = parseInt(b.split("@")[1]);
-      return aNumber - bNumber;
+      return parseFunctionListEntry(a).findex - parseFunctionListEntry(b).findex;
     });
   }
 
@@ -74,11 +73,8 @@
   }
 
   function splitText(text: string) {
-    const index = text.lastIndexOf("@");
-    if (index === -1) {
-      return [text, ''];
-    }
-    return [text.slice(0, index), text.slice(index)];
+    const entry = parseFunctionListEntry(text);
+    return [`${entry.name}@${entry.findex}`, `@${entry.index}`];
   }
 
   onMount(() => {

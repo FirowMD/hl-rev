@@ -1,9 +1,14 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::opcodes::Opcode;
 use hlbc::types::{Function, RefFun, RefString, RefType};
 use std::io::BufRead;
 use tauri::State;
+
+pub(crate) fn format_function_entry(name: &str, findex: usize, index: usize) -> String {
+    format!("{name}@{findex}@{index}")
+}
 
 #[tauri::command]
 pub fn get_function_list(app_data: State<Storage>) -> Result<Vec<String>, String> {
@@ -16,12 +21,11 @@ pub fn get_function_list(app_data: State<Storage>) -> Result<Vec<String>, String
     let mut function_names = Vec::new();
     let mut index = 0;
     for function in functions {
-        function_names.push(
-            function.name(&bytecode).to_string()
-                + &function.findex.to_string()
-                + "@"
-                + &index.to_string(),
-        );
+        function_names.push(format_function_entry(
+            &function.name(&bytecode).to_string(),
+            function.findex.0,
+            index,
+        ));
         index += 1;
     }
 
@@ -74,26 +78,21 @@ pub struct NewFunctionInput {
 }
 
 #[tauri::command]
-pub fn create_function(
-    mut input: NewFunctionInput,
-    app_data: State<Storage>,
-) -> Result<(), String> {
+pub fn create_function(input: NewFunctionInput, app_data: State<Storage>) -> Result<(), String> {
     let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
     let bytecode = bytecode_store
         .bytecode
         .as_mut()
         .ok_or("bytecode not loaded")?;
 
-    // Overwrite name to "new" if is_constructor is Some(true)
-    if let Some(true) = input.is_constructor {
-        input.name = "new".to_string();
-    }
-
-    // expect name to be string index (usize)
-    let name_idx = input
-        .name
-        .parse::<usize>()
-        .map_err(|_| "Function name must be a string index")?;
+    let name_idx = if input.is_constructor == Some(true) {
+        support::constructor_name_index(bytecode).map_err(|error| error.to_string())?
+    } else {
+        input
+            .name
+            .parse::<usize>()
+            .map_err(|_| "Function name must be a string index")?
+    };
     bytecode_refs::ensure_string_index(bytecode, name_idx, "function name", false)?;
     let name_ref = RefString(name_idx);
 
@@ -117,17 +116,14 @@ pub fn create_function(
             .collect::<Vec<_>>()
     });
 
-    let f = Function {
+    let findex = input
+        .findex
+        .unwrap_or(bytecode.functions.len() + bytecode.natives.len());
+    support::ensure_findex_in_dense_range(bytecode, findex, true).map_err(|e| e.to_string())?;
+    support::ensure_findex_available(bytecode, findex, None, None).map_err(|e| e.to_string())?;
+    let mut f = Function {
         t: RefType(type_idx),
-        findex: RefFun(input.findex.unwrap_or_else(|| {
-            bytecode
-                .functions
-                .iter()
-                .map(|f| f.findex.0)
-                .max()
-                .unwrap_or(0)
-                + 1
-        })),
+        findex: RefFun(findex),
         regs: regs_vec,
         ops: ops_vec,
         debug_info: input.debug_info.clone(),
@@ -135,6 +131,7 @@ pub fn create_function(
         name: name_ref,
         parent: parent_ref,
     };
+    support::normalize_function_metadata(bytecode, &mut f).map_err(|e| e.to_string())?;
     bytecode_refs::validate_function_refs_with_pending_fun(
         bytecode,
         &f,
@@ -142,7 +139,10 @@ pub fn create_function(
         false,
         Some(f.findex),
     )?;
-    bytecode.functions.push(f);
+    let mut candidate = bytecode.clone();
+    candidate.functions.push(f);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -161,20 +161,24 @@ pub fn delete_function(index: usize, app_data: State<Storage>) -> Result<(), Str
         ));
     }
     let findex = bytecode.functions[index].findex;
-    bytecode_refs::ensure_tail_delete(
-        "Function",
-        index,
-        bytecode.functions.len(),
-        bytecode_refs::function_references(bytecode, findex),
-    )?;
-    bytecode.functions.remove(index);
+    let self_reference_prefix = format!("function[{}].ops[", index);
+    let references = bytecode_refs::function_references(bytecode, findex)
+        .into_iter()
+        .filter(|reference| !reference.starts_with(&self_reference_prefix))
+        .collect();
+    bytecode_refs::ensure_tail_delete("Function", index, bytecode.functions.len(), references)?;
+    let mut candidate = bytecode.clone();
+    candidate.functions.remove(index);
+    bytecode_refs::compact_function_indexes_after_delete(&mut candidate, findex);
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
 #[tauri::command]
 pub fn update_function(
     index: usize,
-    mut input: NewFunctionInput,
+    input: NewFunctionInput,
     app_data: State<Storage>,
 ) -> Result<(), String> {
     let mut bytecode_store = app_data.bytecode.lock().map_err(|e| e.to_string())?;
@@ -189,14 +193,14 @@ pub fn update_function(
             bytecode.functions.len().saturating_sub(1)
         ));
     }
-    if let Some(true) = input.is_constructor {
-        input.name = "new".to_string();
-    }
-
-    let name_idx = input
-        .name
-        .parse::<usize>()
-        .map_err(|_| "Function name for update_function must be a string index")?;
+    let name_idx = if input.is_constructor == Some(true) {
+        support::constructor_name_index(bytecode).map_err(|error| error.to_string())?
+    } else {
+        input
+            .name
+            .parse::<usize>()
+            .map_err(|_| "Function name for update_function must be a string index")?
+    };
     bytecode_refs::ensure_string_index(bytecode, name_idx, "function name", false)?;
     let name_ref = RefString(name_idx);
     let type_idx = input.t;
@@ -214,9 +218,14 @@ pub fn update_function(
             .map(|(name_idx, slot_idx)| (RefString(*name_idx as usize), *slot_idx))
             .collect::<Vec<_>>()
     });
-    let f = Function {
+    let old_findex = bytecode.functions[index].findex;
+    let findex = input.findex.unwrap_or(old_findex.0);
+    if findex != old_findex.0 {
+        return Err("Changing a function findex is not supported".to_string());
+    }
+    let mut f = Function {
         t: RefType(type_idx),
-        findex: RefFun(input.findex.unwrap_or(bytecode.functions[index].findex.0)),
+        findex: RefFun(findex),
         regs: regs_vec,
         ops: ops_vec,
         debug_info: input.debug_info.clone(),
@@ -224,8 +233,12 @@ pub fn update_function(
         name: name_ref,
         parent: parent_ref,
     };
+    support::normalize_function_metadata(bytecode, &mut f).map_err(|e| e.to_string())?;
     bytecode_refs::validate_function_refs(bytecode, &f, "updated function", false)?;
-    bytecode.functions[index] = f;
+    let mut candidate = bytecode.clone();
+    candidate.functions[index] = f;
+    support::rebuild_runtime_indexes(&mut candidate).map_err(|e| e.to_string())?;
+    *bytecode = candidate;
     Ok(())
 }
 
@@ -265,10 +278,11 @@ pub fn get_function_name_by_index(
         return Err("Function index out of bounds".to_string());
     }
 
-    Ok(functions[index].name(&bytecode).to_string()
-        + &functions[index].findex.to_string()
-        + "@"
-        + &index.to_string())
+    Ok(format_function_entry(
+        &functions[index].name(&bytecode).to_string(),
+        functions[index].findex.0,
+        index,
+    ))
 }
 
 #[tauri::command]

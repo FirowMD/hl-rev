@@ -2,6 +2,29 @@
 
 The server runs over stdio when ByteSto4t is launched with `--mcp`. A typical session starts with `load_bytecode`, uses the list and inspection tools to discover indexes, applies optional in-memory edits, and finishes with `save_bytecode`.
 
+## In-app assistant (experimental and unofficial)
+
+The `Assistant` workspace tab uses ChatGPT OAuth and an experimental ChatGPT Codex compatibility endpoint. This is not an official OpenAI integration, and endpoint availability, account entitlements, or protocol behavior can change. It exposes inspection, decompilation, disassembly, reference, lossless item lookup, validation, and optional patching handlers for the currently loaded module. `Enable bytecode tools` is a feature gate and defaults to off. Even when enabled, mutation and save tools are hidden and rejected unless the user grants the corresponding approval for that individual request; saving has a separate grant.
+
+Before the first connection or request, bytesto4t requires acceptance of a versioned privacy disclosure:
+
+- Messages are sent to ChatGPT.
+- Selected bytecode metadata and requested decompilation, disassembly, and other tool output may be sent to ChatGPT.
+- Chat history is stored locally as XChaCha20-Poly1305 authenticated ciphertext in the Tauri application-data directory. A random 256-bit key is stored in the operating-system credential vault. History records are versioned, bounded, authenticated before use, and replaced atomically.
+- If `BYTESTO4T_HTTP_HELPER` is configured, it receives OAuth headers and request bodies through stdin after direct networking is denied. It must be the absolute path of a fully trusted curl-compatible executable because that process can read OAuth tokens and Assistant payloads. When it is unset, bytesto4t does not search `PATH` for curl or start an external helper.
+- Custom proxies can observe connection metadata.
+- Disabling TLS verification permits interception of OAuth credentials and analyzed content. The UI requires a separate warning confirmation before this setting can first be enabled.
+
+Existing plaintext `bytesto4t.assistant.chats.v2` and legacy v1 WebView storage is migrated once. Plaintext keys are deleted only after encrypted persistence succeeds. Removing a chat replaces the encrypted store without that chat; removing all chats deletes the encrypted history file.
+
+OAuth access and refresh tokens, account identifiers, and the history key are stored in the operating-system credential vault and are never written to the normal bytesto4t config. Oversized OAuth token payloads are split across versioned, integrity-checked vault entries to stay below the Windows Credential Manager limit. Model, reasoning, proxy, TLS, and privacy-disclosure preferences are stored in the normal config. The OAuth client ID is a public identifier, not a client secret.
+
+Network requests follow the system proxy and VPN route by default. Custom proxy URLs support HTTP, HTTPS, and SOCKS5, but URLs containing user information, query strings, or fragments are rejected; bytesto4t does not store proxy passwords in its config. If the app's socket is rejected with `Access is denied` and `BYTESTO4T_HTTP_HELPER` explicitly names an absolute executable path, OAuth and compatibility requests retry through that helper. Curl configuration, including headers and bodies, is passed through stdin rather than command-line arguments. Helper failures do not include stderr, authorization headers, request bodies, or provider response bodies.
+
+Assistant response payloads set `"store": false`. This is a request preference, not a guarantee that the provider retains nothing; provider policies still apply. ChatGPT and API billing remain separate.
+
+The Assistant implements OAuth 2.0 Authorization Code with PKCE and communicates with a Codex-compatible ChatGPT endpoint. Reusing an OAuth client or backend owned by another application may require explicit provider authorization; publication of client code or a public OAuth client ID does not grant that authorization.
+
 ## Index conventions
 
 Most bytecode pools use a zero-based vector `index`. Functions and natives also share a second, dense identifier namespace named `findex`.
@@ -40,7 +63,9 @@ For example, `toLowerCase@1@444` has `findex` 1 and vector `index` 444. Tools wi
 
 ## Editing behavior
 
-Edits affect the loaded in-memory bytecode. They are not written back to the source file automatically. Use `save_bytecode` to serialize a stripped bytecode file to a new path.
+Edits affect the loaded in-memory bytecode. They are not written back to the source file automatically. The MCP `save_bytecode` tool validates and serializes the bytecode, including debug data, before atomically creating a new path; it refuses to overwrite an existing path.
+
+The embedded Assistant mutates only when bytecode tools are enabled and the user grants edit approval for the current request. Saving requires a separate request approval. These grants are enforced in Rust and reset after submission. A sequence of mutation calls is not transactional: if a later call fails, earlier successful edits remain in memory. The Assistant save binding opens a native save dialog instead of accepting a model-supplied path, confirms replacement of an existing file, serializes before writing, and atomically replaces the chosen destination. The Assistant is instructed to re-inspect changed items, validate the final module, and report whether changes were only applied in memory or also saved.
 
 Function and native `findex` values must remain unique and dense across both pools. ByteSto4t allocates the next shared value when `findex` is omitted, rejects collisions, repairs references when indexes are compacted, and rebuilds HLBC runtime lookup indexes after affected edits.
 
@@ -51,3 +76,24 @@ Pool deletion is intentionally conservative. Indexed elements can only be delete
 Function, native, object, enum, field, and constructor names are stored as string-pool references. Arguments named `name` or `lib` in those create/update tools therefore contain decimal string-pool indexes. For `create_function` and `update_function`, `is_constructor: true` resolves the `new` string automatically and ignores `name`.
 
 HLBC does not serialize a standalone function name directly. A function name survives save and reload only when the function is connected to an object prototype or binding; otherwise it is displayed as `<none>` after reload.
+
+### Opcode editing
+
+Opcode JSON uses the externally tagged `hlbc::Opcode` representation, for example
+`{"JAlways":{"offset":2}}`. `create_function` and `update_function` validate the complete
+function, but `update_function` replaces the opcode array as supplied; it does not repair control
+flow after insertions, removals, or moves.
+
+- Jump targets are relative to the next opcode: `target = opcode_index + 1 + offset`. Backward
+  jumps emitted for loops target a `Label` opcode.
+- `Switch.offsets` and `Switch.end` are non-negative offsets relative to the next opcode. A selector
+  outside `offsets` falls through to the next opcode. `end` is the structural join after all switch
+  arms, not the default target.
+- `MakeEnum.construct`, `EnumAlloc.construct`, and `EnumField.construct` are indexes local to the
+  enum type, not indexes in the global type pool.
+- `EndTrap.normal` is a boolean marker. `true` is the normal end of a try body; `false` is cleanup
+  emitted before an early return, break, or continue.
+- `Prefetch.field` uses the wire encoding: `0` means the value itself and `n + 1` means field `n`.
+  `Asm.reg` similarly uses `0` for no register and `n + 1` for register `n`.
+- When debug data is present, `debug_info` must contain exactly one entry per opcode. Recalculate
+  relative offsets and debug positions whenever the opcode array changes.

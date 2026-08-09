@@ -30,13 +30,13 @@ export const OPCODE_OPTIONS = [
   { key: "Call2", label: "Call2", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"}, {key:"arg0", type:"reg"}, {key:"arg1", type:"reg"} ] },
   { key: "Call3", label: "Call3", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"}, {key:"arg0", type:"reg"}, {key:"arg1", type:"reg"}, {key:"arg2", type:"reg"} ] },
   { key: "Call4", label: "Call4", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"}, {key:"arg0", type:"reg"}, {key:"arg1", type:"reg"}, {key:"arg2", type:"reg"}, {key:"arg3", type:"reg"} ] },
-  { key: "CallN", label: "CallN", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"}, {key:"args", type:"reg"} ] },
-  { key: "CallMethod", label: "CallMethod", params: [ {key:"dst", type:"reg"}, {key:"field", type:"field"}, {key:"args", type:"reg"} ] },
-  { key: "CallThis", label: "CallThis", params: [ {key:"dst", type:"reg"}, {key:"field", type:"field"}, {key:"args", type:"reg"} ] },
-  { key: "CallClosure", label: "CallClosure", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"reg"}, {key:"args", type:"reg"} ] },
+  { key: "CallN", label: "CallN", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"}, {key:"args", type:"regs"} ] },
+  { key: "CallMethod", label: "CallMethod", params: [ {key:"dst", type:"reg"}, {key:"field", type:"field"}, {key:"args", type:"regs"} ] },
+  { key: "CallThis", label: "CallThis", params: [ {key:"dst", type:"reg"}, {key:"field", type:"field"}, {key:"args", type:"regs"} ] },
+  { key: "CallClosure", label: "CallClosure", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"reg"}, {key:"args", type:"regs"} ] },
   { key: "StaticClosure", label: "StaticClosure", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"} ] },
   { key: "InstanceClosure", label: "InstanceClosure", params: [ {key:"dst", type:"reg"}, {key:"fun", type:"function"}, {key:"obj", type:"reg"} ] },
-  { key: "VirtualClosure", label: "VirtualClosure", params: [ {key:"dst", type:"reg"}, {key:"obj", type:"reg"}, {key:"field", type:"reg"} ] },
+  { key: "VirtualClosure", label: "VirtualClosure", params: [ {key:"dst", type:"reg"}, {key:"obj", type:"reg"}, {key:"field", type:"field"} ] },
 
   { key: "GetGlobal", label: "GetGlobal", params: [ {key:"dst", type:"reg"}, {key:"global", type:"global"} ] },
   { key: "SetGlobal", label: "SetGlobal", params: [ {key:"global", type:"global"}, {key:"src", type:"reg"} ] },
@@ -75,10 +75,10 @@ export const OPCODE_OPTIONS = [
   { key: "Ret", label: "Ret", params: [ {key:"ret", type:"reg"} ] },
   { key: "Throw", label: "Throw", params: [ {key:"exc", type:"reg"} ] },
   { key: "Rethrow", label: "Rethrow", params: [ {key:"exc", type:"reg"} ] },
-  { key: "Switch", label: "Switch", params: [ {key:"reg", type:"reg"}, {key:"offsets", type:"offset"}, {key:"end", type:"offset"} ] },
+  { key: "Switch", label: "Switch", params: [ {key:"reg", type:"reg"}, {key:"offsets", type:"offsets"}, {key:"end", type:"offset"} ] },
   { key: "NullCheck", label: "NullCheck", params: [ {key:"reg", type:"reg"} ] },
   { key: "Trap", label: "Trap", params: [ {key:"exc", type:"reg"}, {key:"offset", type:"offset"} ] },
-  { key: "EndTrap", label: "EndTrap", params: [ {key:"exc", type:"reg"} ] },
+  { key: "EndTrap", label: "EndTrap", params: [ {key:"normal", type:"bool"} ] },
 
   { key: "GetI8", label: "GetI8", params: [ {key:"dst", type:"reg"}, {key:"bytes", type:"reg"}, {key:"index", type:"reg"} ] },
   { key: "GetI16", label: "GetI16", params: [ {key:"dst", type:"reg"}, {key:"bytes", type:"reg"}, {key:"index", type:"reg"} ] },
@@ -99,7 +99,7 @@ export const OPCODE_OPTIONS = [
   { key: "Unref", label: "Unref", params: [ {key:"dst", type:"reg"}, {key:"src", type:"reg"} ] },
   { key: "Setref", label: "Setref", params: [ {key:"dst", type:"reg"}, {key:"value", type:"reg"} ] },
 
-  { key: "MakeEnum", label: "MakeEnum", params: [ {key:"dst", type:"reg"}, {key:"construct", type:"construct"}, {key:"args", type:"reg"} ] },
+  { key: "MakeEnum", label: "MakeEnum", params: [ {key:"dst", type:"reg"}, {key:"construct", type:"construct"}, {key:"args", type:"regs"} ] },
   { key: "EnumAlloc", label: "EnumAlloc", params: [ {key:"dst", type:"reg"}, {key:"construct", type:"construct"} ] },
   { key: "EnumIndex", label: "EnumIndex", params: [ {key:"dst", type:"reg"}, {key:"value", type:"reg"} ] },
   { key: "EnumField", label: "EnumField", params: [ {key:"dst", type:"reg"}, {key:"value", type:"reg"}, {key:"construct", type:"construct"}, {key:"field", type:"field"} ] },
@@ -109,6 +109,7 @@ export const OPCODE_OPTIONS = [
   { key: "RefData", label: "RefData", params: [ {key:"dst", type:"reg"}, {key:"src", type:"reg"} ] },
   { key: "RefOffset", label: "RefOffset", params: [ {key:"dst", type:"reg"}, {key:"reg", type:"reg"}, {key:"offset", type:"reg"} ] },
   { key: "Nop", label: "Nop", params: [] },
-  { key: "Prefetch", label: "Prefetch", params: [ {key:"value", type:"reg"}, {key:"field", type:"field"}, {key:"mode", type:"int"} ] },
-  { key: "Asm", label: "Asm", params: [ {key:"mode", type:"int"}, {key:"value", type:"int"}, {key:"reg", type:"reg"} ] }
+  { key: "Prefetch", label: "Prefetch", params: [ {key:"value", type:"reg"}, {key:"field", type:"field"}, {key:"mode", type:"number"} ] },
+  { key: "Asm", label: "Asm", params: [ {key:"mode", type:"number"}, {key:"value", type:"number"}, {key:"reg", type:"number"} ] },
+  { key: "Catch", label: "Catch", params: [ {key:"global", type:"global"} ] }
 ];

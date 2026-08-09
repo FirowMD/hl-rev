@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
 use serde_json::Value;
@@ -40,7 +41,10 @@ impl ToolHandler for RemoveTypeHandler {
             bytecode_refs::type_references(bytecode, index),
         )
         .map_err(McpError::Validation)?;
-        bytecode.types.remove(index);
+        let mut candidate = bytecode.clone();
+        candidate.types.remove(index);
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

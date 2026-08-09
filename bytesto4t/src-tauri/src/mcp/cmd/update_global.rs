@@ -1,5 +1,6 @@
 use crate::app_data::Storage;
 use crate::bytecode_refs;
+use crate::mcp::cmd::support;
 use hlbc::types::RefType;
 use prism_mcp_rs::prelude::*;
 use serde_json::json;
@@ -52,7 +53,10 @@ impl ToolHandler for UpdateGlobalHandler {
         let global_type = RefType(input.global_type);
         bytecode_refs::validate_global_refs(bytecode, global_type, "updated global")
             .map_err(McpError::Validation)?;
-        bytecode.globals[input.index] = global_type;
+        let mut candidate = bytecode.clone();
+        candidate.globals[input.index] = global_type;
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

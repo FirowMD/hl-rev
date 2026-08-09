@@ -1,9 +1,10 @@
-use crate::app_config::AppConfig;
+use crate::app_config::{AppConfig, AssistantConfig};
 use crate::app_data::Storage;
 use std::path::Path;
 use tauri::{Manager, Runtime, State};
 
 fn write_config_file(config_file_path: &str, app_config: &AppConfig) -> Result<(), String> {
+    crate::assistant::network::validate_proxy_url(&app_config.assistant.proxy_url)?;
     let app_config_str = serde_json::to_string(app_config).map_err(|e| e.to_string())?;
     std::fs::write(config_file_path, app_config_str).map_err(|e| e.to_string())
 }
@@ -28,7 +29,12 @@ fn read_config<R: Runtime>(
     app_handle: &tauri::AppHandle<R>,
 ) -> Result<(), String> {
     let config_file = std::fs::File::open(config_file_path).map_err(|e| e.to_string())?;
-    let app_config: AppConfig = serde_json::from_reader(config_file).map_err(|e| e.to_string())?;
+    let mut app_config: AppConfig =
+        serde_json::from_reader(config_file).map_err(|e| e.to_string())?;
+    if crate::assistant::network::validate_proxy_url(&app_config.assistant.proxy_url).is_err() {
+        app_config.assistant.proxy_url.clear();
+        write_config_file(config_file_path, &app_config)?;
+    }
 
     let app_data = app_handle.state::<Storage>();
     let mut config = app_data.config.lock().map_err(|e| e.to_string())?;
@@ -46,6 +52,7 @@ fn create_default_config<R: Runtime>(
         theme: Some("dark".to_string()),
         colorscheme: Some("bytesto4t".to_string()),
         recent_files: Some(Vec::new()),
+        assistant: AssistantConfig::default(),
     };
     write_config_file(config_file_path, &default_config)?;
 
@@ -122,4 +129,19 @@ pub fn remove_config_recent_file(file_path: &str, app_data: State<Storage>) -> R
         recent_files.retain(|file| file != file_path);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_writer_rejects_embedded_proxy_credentials() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.json");
+        let mut config = AppConfig::new(path.to_string_lossy().into_owned());
+        config.assistant.proxy_url = "https://user:password@proxy.example".to_string();
+        assert!(write_config_file(path.to_str().unwrap(), &config).is_err());
+        assert!(!path.exists());
+    }
 }

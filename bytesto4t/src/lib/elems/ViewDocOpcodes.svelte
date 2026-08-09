@@ -67,7 +67,7 @@
 - **Description:** Increment or decrement a register.
 
 ## Call0 ... Call4
-- **Usage:** \`Call0 { dst: Reg, fun: RefFun }\`, ..., \`Call4 { dst: Reg, fun: RefFun, args: [Reg; 4] }\`
+- **Usage:** \`Call0 { dst: Reg, fun: RefFun }\`, ..., \`Call4 { dst: Reg, fun: RefFun, arg0: Reg, arg1: Reg, arg2: Reg, arg3: Reg }\`
 - **Description:** Call a function with 0–4 arguments.
 
 ## CallN
@@ -118,16 +118,16 @@
 - **Description:** Throw or rethrow exceptions.
 
 ## Switch
-- **Usage:** \`Switch { reg: Reg, cases: Vec<Offset>, default: Offset }\`
-- **Description:** Switch-case control flow.
+- **Usage:** \`Switch { reg: Reg, offsets: Vec<u32>, end: u32 }\`
+- **Description:** Table entries jump relative to the next opcode; out-of-range selectors fall through. \`end\` marks the structural join.
 
 ## NullCheck
 - **Usage:** \`NullCheck { reg: Reg }\`
 - **Description:** Panic if value is null.
 
 ## Trap / EndTrap
-- **Usage:** \`Trap { exc: Reg, offset: Offset }\`, \`EndTrap { exc: Reg }\`
-- **Description:** Try/catch-style exception handling.
+- **Usage:** \`Trap { exc: Reg, offset: Offset }\`, \`EndTrap { normal: bool }\`
+- **Description:** Try/catch-style exception handling. \`normal\` distinguishes normal exit from early-exit cleanup.
 
 ## GetI8 / GetI16 / GetMem / GetArray
 - **Usage:** \`GetI8 { dst: Reg, bytes: Reg, index: Reg }\`, etc.
@@ -151,11 +151,11 @@
 
 ## Ref / Unref / Setref
 - **Usage:** \`Ref { dst: Reg, src: Reg }\`, etc.
-- **Description:** Reference counting operations.
+- **Description:** Create, read, and write typed references.
 
 ## Enum Operations
 - **Usage:** \`MakeEnum { dst: Reg, construct: RefEnumConstruct, args: Vec<Reg> }\`, etc.
-- **Description:** Work with enums.
+- **Description:** Work with enums. Constructor indexes are local to the enum type.
 
 ## Assert
 - **Usage:** \`Assert\`
@@ -163,7 +163,7 @@
 
 ## RefData / RefOffset
 - **Usage:** \`RefData { dst: Reg, src: Reg }\`  
-  \`RefOffset { dst: Reg, reg: Reg, offset: i32 }\`
+  \`RefOffset { dst: Reg, reg: Reg, offset: Reg }\`
 - **Description:** Data referencing operations.
 
 ## Nop
@@ -172,11 +172,15 @@
 
 ## Prefetch
 - **Usage:** \`Prefetch { value: Reg, field: RefField, mode: i32 }\`
-- **Description:** x86 prefetch hint.
+- **Description:** x86 prefetch hint. Field \`0\` selects the value; \`n + 1\` selects field \`n\`.
 
 ## Asm
-- **Usage:** \`Asm { mode: i32, value: Reg, reg: Reg }\`
-- **Description:** Inline x86 assembly.`;
+- **Usage:** \`Asm { mode: i32, value: i32, reg: Reg }\`
+- **Description:** Inline x86 assembly. Register \`0\` means none; \`n + 1\` selects register \`n\`.
+
+## Catch
+- **Usage:** \`Catch { global: RefGlobal }\`
+- **Description:** Declares an exception type global following a trap.`;
 
   interface OpcodeInfo {
     name: string;

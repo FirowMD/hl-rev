@@ -107,7 +107,10 @@ impl ToolHandler for UpdateNativeHandler {
         };
         bytecode_refs::validate_native_refs(bytecode, &native, "updated native")
             .map_err(McpError::Validation)?;
-        bytecode.natives[input.index] = native;
+        let mut candidate = bytecode.clone();
+        candidate.natives[input.index] = native;
+        support::rebuild_runtime_indexes(&mut candidate)?;
+        *bytecode = candidate;
         Ok(CallToolResult::text("ok"))
     }
 }

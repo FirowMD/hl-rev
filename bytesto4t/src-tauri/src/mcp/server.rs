@@ -58,6 +58,9 @@ pub async fn start(app_handle: AppHandle) -> McpResult<()> {
 
     cmd::get_bytes_list::register(&mut server, app_handle.clone()).await?;
     cmd::get_bytes_full_info::register(&mut server, app_handle.clone()).await?;
+    cmd::add_bytes::register(&mut server, app_handle.clone()).await?;
+    cmd::update_bytes::register(&mut server, app_handle.clone()).await?;
+    cmd::remove_bytes::register(&mut server, app_handle.clone()).await?;
 
     cmd::get_type_list::register(&mut server, app_handle.clone()).await?;
     cmd::add_type::register(&mut server, app_handle.clone()).await?;

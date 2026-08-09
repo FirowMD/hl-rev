@@ -1,6 +1,8 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@lucide/svelte@*": "1.28.0_svelte@5.56.8",
+    "npm:@lucide/svelte@^1.28.0": "1.28.0_svelte@5.56.8",
     "npm:@skeletonlabs/skeleton-svelte@5": "5.0.0_svelte@5.56.8",
     "npm:@skeletonlabs/skeleton@5": "5.0.0_tailwindcss@4.3.3",
     "npm:@sveltejs/adapter-static@^3.0.10": "3.0.10_@sveltejs+kit@2.70.1__@sveltejs+vite-plugin-svelte@7.2.0___svelte@5.56.8___vite@8.1.5__svelte@5.56.8__typescript@6.0.3__vite@8.1.5_typescript@6.0.3",
@@ -13,7 +15,10 @@
     "npm:@tauri-apps/plugin-dialog@^2.7.2": "2.7.2",
     "npm:@tauri-apps/plugin-fs@^2.5.1": "2.5.1",
     "npm:@tauri-apps/plugin-log@^2.9.0": "2.9.0",
+    "npm:dompurify@^3.4.12": "3.4.12",
     "npm:highlight.js@^11.11.1": "11.11.1",
+    "npm:lucide-svelte@*": "1.0.1_svelte@5.56.8",
+    "npm:marked@^18.0.7": "18.0.7",
     "npm:paneforge@^1.0.2": "1.0.2_svelte@5.56.8",
     "npm:shiki@^4.3.1": "4.3.1",
     "npm:svelte-check@^4.7.3": "4.7.3_svelte@5.56.8_typescript@6.0.3",
@@ -90,6 +95,12 @@
       "dependencies": [
         "@jridgewell/resolve-uri",
         "@jridgewell/sourcemap-codec"
+      ]
+    },
+    "@lucide/svelte@1.28.0_svelte@5.56.8": {
+      "integrity": "sha512-C1Ge84KW2z4q44/WDIEo/2KC2jby5u6mSlta7q+p6g7u0ld8sC/w1fMBiSswF+4bxAl9jlzzaVTpp79qqkiy5g==",
+      "dependencies": [
+        "svelte@5.56.8"
       ]
     },
     "@napi-rs/wasm-runtime@1.1.6_@emnapi+core@1.11.1_@emnapi+runtime@1.11.1": {
@@ -1080,6 +1091,12 @@
         "dequal"
       ]
     },
+    "dompurify@3.4.12": {
+      "integrity": "sha512-zQvGet8Z2sWbQhCmfFz/T5QWH2oBmjnqK3qvOjaqaNLrLEF912WamU+ohnTp0TCep/MFVHpdJuCZEdFOdTnEFg==",
+      "optionalDependencies": [
+        "@types/trusted-types"
+      ]
+    },
     "enhanced-resolve@5.24.3": {
       "integrity": "sha512-PwKooW9JUzh5chmYfHM3IQl5OkK2u2Nm011MgeZrss3JmFraUx/fqrf78kk8GUMYoibx/14MdwTl/1WKkG7TpQ==",
       "dependencies": [
@@ -1234,11 +1251,22 @@
     "locate-character@3.0.0": {
       "integrity": "sha512-SW13ws7BjaeJ6p7Q6CO2nchbYEc3X3J6WrmTTDto7yMPqVSZTUyY5Tjbid+Ab8gLnATtygYtiDIJGQRRn2ZOiA=="
     },
+    "lucide-svelte@1.0.1_svelte@5.56.8": {
+      "integrity": "sha512-WvzZgk0pqzgda+AErLvgWxHkfg/+GgUwqKMRHvzt0IqyMdmyEDzDCk3Z+Wo/3y753oIgx8u9Q4eUbWkghFa8Jg==",
+      "dependencies": [
+        "svelte@5.56.8"
+      ],
+      "deprecated": true
+    },
     "magic-string@0.30.21": {
       "integrity": "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==",
       "dependencies": [
         "@jridgewell/sourcemap-codec"
       ]
+    },
+    "marked@18.0.7": {
+      "integrity": "sha512-iDVQ5ldaiKXn6b2JroX5kgRfmwgqolW7NpaEzTl1k/2Zh1njIEN9yniyLV/mOvWwtsE8OGgkjsCYvijuPk1dtA==",
+      "bin": true
     },
     "mdast-util-to-hast@13.2.1": {
       "integrity": "sha512-cctsq2wp5vTsLIcaymblUriiTcZd0CwWtCbLvrOzYCDZoWyMNV8sZ7krj09FSnsiJi3WVsHLM4k6Dq/yaPyCXA==",
@@ -1632,6 +1660,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@lucide/svelte@^1.28.0",
         "npm:@skeletonlabs/skeleton-svelte@5",
         "npm:@skeletonlabs/skeleton@5",
         "npm:@sveltejs/adapter-static@^3.0.10",
@@ -1644,7 +1673,9 @@
         "npm:@tauri-apps/plugin-dialog@^2.7.2",
         "npm:@tauri-apps/plugin-fs@^2.5.1",
         "npm:@tauri-apps/plugin-log@^2.9.0",
+        "npm:dompurify@^3.4.12",
         "npm:highlight.js@^11.11.1",
+        "npm:marked@^18.0.7",
         "npm:paneforge@^1.0.2",
         "npm:shiki@^4.3.1",
         "npm:svelte-check@^4.7.3",
