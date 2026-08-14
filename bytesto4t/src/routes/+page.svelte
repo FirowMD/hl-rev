@@ -2,7 +2,9 @@
   import { invoke } from "@tauri-apps/api/core";
   import { open, message } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
+  import packageMetadata from "../../package.json";
 
+  const appVersion = packageMetadata.version;
   let chosenRecentFile: string = "";
   let targetFilePath: string = "";
   let recentFiles: string[] = [];
@@ -124,7 +126,7 @@
     })();
 
     document.addEventListener('click', handleGlobalClick);
-    
+
     return () => {
       document.removeEventListener('click', handleGlobalClick);
     };
@@ -140,7 +142,7 @@
       <h1
         class="text-2xl font-bold text-surface-500"
       >
-        ByteSto4t v2.3
+        ByteSto4t v{appVersion}
       </h1>
     </div>
     <div class="flex flex-row gap-2 justify-between w-full h-8">
@@ -153,7 +155,7 @@
       />
       <button
         type="button"
-        class="btn preset-tonal-grain-raised-surface w-fit"
+        class="btn preset-gradient-primary-grain w-fit"
         onclick={onClickBrowseHandler}
       >
         Browse
@@ -167,14 +169,14 @@
       Ready!
     </button>
     <form class="w-full h-full">
-      <select 
-        class="select w-full h-full focus:outline-none overflow-y-auto" 
-        size="5" 
+      <select
+        class="select w-full h-full focus:outline-none overflow-y-auto"
+        size="5"
         bind:value={chosenRecentFile}
         onchange={onChangeListBoxItemHandler}
       >
         {#each recentFiles as recentFile}
-          <option 
+          <option
             value={recentFile}
             oncontextmenu={(e) => showContextMenu(e, recentFile)}
           >
@@ -184,9 +186,9 @@
       </select>
     </form>
   </div>
-  
+
   {#if contextMenuVisible}
-    <div 
+    <div
       class="context-menu fixed z-50 bg-surface-800 border border-surface-600 rounded-lg shadow-lg py-1 min-w-48"
       style="left: {contextMenuX}px; top: {contextMenuY}px;"
     >

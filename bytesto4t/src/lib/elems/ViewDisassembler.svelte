@@ -86,7 +86,7 @@
       </div>
       <button
         type="button"
-        class="btn preset-tonal-grain-raised-surface"
+        class="btn preset-gradient-primary-grain"
         onclick={onClickSaveDisasmHandler}
         disabled={functionName === ""}
       >
