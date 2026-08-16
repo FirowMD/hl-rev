@@ -3,7 +3,7 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit, Payload},
     XChaCha20Poly1305, XNonce,
 };
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -202,9 +202,10 @@ fn encrypt_store(store: &AssistantChatStore, key: &[u8]) -> Result<Vec<u8>, Stri
         .map_err(|_| "The chat-history encryption key is invalid.".to_string())?;
     let mut nonce = [0_u8; 24];
     rand::rng().fill_bytes(&mut nonce);
+    let cipher_nonce = XNonce::from(nonce);
     let ciphertext = cipher
         .encrypt(
-            XNonce::from_slice(&nonce),
+            &cipher_nonce,
             Payload {
                 msg: &plaintext,
                 aad: HISTORY_AAD,
@@ -236,6 +237,8 @@ fn decrypt_store(envelope_bytes: &[u8], key: &[u8]) -> Result<AssistantChatStore
     if nonce.len() != 24 {
         return Err("Encrypted Assistant chat history has an invalid nonce.".to_string());
     }
+    let nonce = XNonce::try_from(nonce.as_slice())
+        .map_err(|_| "Encrypted Assistant chat history has an invalid nonce.".to_string())?;
     let ciphertext = URL_SAFE_NO_PAD
         .decode(envelope.ciphertext)
         .map_err(|_| "Encrypted Assistant chat history has invalid ciphertext.".to_string())?;
@@ -247,7 +250,7 @@ fn decrypt_store(envelope_bytes: &[u8], key: &[u8]) -> Result<AssistantChatStore
     let plaintext = Zeroizing::new(
         cipher
             .decrypt(
-                XNonce::from_slice(&nonce),
+                &nonce,
                 Payload {
                     msg: &ciphertext,
                     aad: HISTORY_AAD,

@@ -3,7 +3,7 @@ use super::network::{build_client, is_access_denied, network_error};
 use super::redaction::redact;
 use crate::app_config::AssistantConfig;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
