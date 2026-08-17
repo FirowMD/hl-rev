@@ -36,7 +36,7 @@
     "shiki": "^4.3.1",
     "svelte": "^5.56.8",
     "svelte-check": "^4.7.3",
-    "svelte-tiny-virtual-list": "^3.0.1",
+    "svelte-tiny-virtual-list": "^4.0.0",
     "typescript": "^6.0.3",
     "vite": "^8.1.5"
   }
