@@ -3251,9 +3251,9 @@ checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
 
 [[package]]
 name = "prism-mcp-rs"
-version = "2.0.1"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4353baf7eb0aaac17b4a08dd2a9da8dd4ccc7a4c772623894283d3f59a69aeb9"
+checksum = "0c792f96f54decc4222a71706309b849dadf9a73cf7c4a8a3c56fdb9603cf58a"
 dependencies = [
  "anyhow",
  "async-trait",
