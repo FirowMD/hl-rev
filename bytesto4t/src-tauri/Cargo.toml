@@ -1,6 +1,6 @@
 [package]
 name = "bytesto4t"
-version = "0.2.6"
+version = "0.2.7"
 description = "GUI app based on hlbc"
 authors = ["FirowMD"]
 edition = "2021"
